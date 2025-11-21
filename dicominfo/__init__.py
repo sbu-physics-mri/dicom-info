@@ -48,7 +48,7 @@ def display_images(files: list[str]) -> None:
         print("No DICOM files with pixel data found.")
         sys.exit(1)
 
-    # Create figure with tabs (subplots) for each image
+    # Create figure with subplots for each image
     num_images = len(files_with_pixels)
     fig = plt.figure(figsize=(10, 8))
 
@@ -81,7 +81,11 @@ def display_images(files: list[str]) -> None:
             ax.axis('off')
             
             # Create slider axes below the image
-            slider_ax = plt.axes([0.15 + (idx - 1) * 0.8 / num_images, 0.02, 0.65 / num_images, 0.03])
+            # Position: [left, bottom, width, height]
+            # Calculate position based on subplot index for multiple images
+            slider_left = 0.15 + (idx - 1) * 0.8 / num_images
+            slider_width = 0.65 / num_images
+            slider_ax = plt.axes([slider_left, 0.02, slider_width, 0.03])
             slider = Slider(
                 slider_ax, 
                 'Slice', 
@@ -92,15 +96,15 @@ def display_images(files: list[str]) -> None:
             )
 
             # Update function for slider
-            def make_update(image_obj, axis, data, fname):
+            def make_update(image_obj, axis, data, fname, sldr):
                 def update(val):
-                    slice_idx = int(slider.val)
+                    slice_idx = int(sldr.val)
                     image_obj.set_data(data[slice_idx])
                     axis.set_title(f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}")
                     fig.canvas.draw_idle()
                 return update
 
-            slider.on_changed(make_update(im, ax, pixel_array, filename))
+            slider.on_changed(make_update(im, ax, pixel_array, filename, slider))
             sliders.append(slider)
             axes_images.append((ax, im, slider, pixel_array))
 
@@ -113,7 +117,6 @@ def display_images(files: list[str]) -> None:
         plt.subplots_adjust(bottom=0.15)
     
     plt.show()
-
 
 
 def main() -> None:
