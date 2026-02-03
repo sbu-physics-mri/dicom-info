@@ -188,11 +188,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Display images or print dicom info
+    print_stats(args.file)
+
+    # Display images
     if args.display:
         display_images(args.file, max_cols=args.columns)
-    else:
-        print_stats(args.file)
 
 
 if __name__ == "__main__":
