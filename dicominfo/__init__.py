@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import pydicom
 import pydicom.errors
 from matplotlib.widgets import Slider
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,10 @@ def print_stats(files: list[str]) -> None:
         print(banner, dcm, sep="\n")
 
 
-def display_images(files: list[str]) -> None:
+def display_images(
+    files: list[str],
+    max_cols: int = 4,
+) -> None:
     """Display DICOM images with interactive controls."""
     try:
         dcms = [pydicom.dcmread(f) for f in files]
@@ -64,7 +68,9 @@ def display_images(files: list[str]) -> None:
 
     # Create figure with subplots for each image
     num_images = len(files_with_pixels)
-    fig = plt.figure(figsize=(10, 8))
+    cols = min(num_images, max_cols, int(num_images ** .5))
+    rows = (num_images - 1) // cols + 1
+    fig = plt.figure(figsize=(5 * cols, 4 * rows))
 
     # Store references to manage 3D sliders
     sliders = []
@@ -79,7 +85,7 @@ def display_images(files: list[str]) -> None:
         # Determine if 2D or 3D
         if len(pixel_array.shape) == 2: # noqa: PLR2004
             # 2D image - simple display
-            ax = fig.add_subplot(1, num_images, idx)
+            ax = fig.add_subplot(rows, cols, idx)
             im = ax.imshow(pixel_array, cmap="gray")
             ax.set_title(filename)
             ax.axis("off")
@@ -88,7 +94,7 @@ def display_images(files: list[str]) -> None:
 
         elif len(pixel_array.shape) == 3: # noqa: PLR2004
             # 3D image - display with slider
-            ax = fig.add_subplot(1, num_images, idx)
+            ax = fig.add_subplot(rows, cols, idx)
 
             # Start with the first slice
             initial_slice = 0
@@ -98,12 +104,9 @@ def display_images(files: list[str]) -> None:
             )
             ax.axis("off")
 
-            # Create slider axes below the image
-            # Position => [left, bottom, width, height]
-            # Calculate position based on subplot index for multiple images
-            slider_left = 0.15 + (idx - 1) * 0.8 / num_images
-            slider_width = 0.65 / num_images
-            slider_ax = plt.axes((slider_left, 0.02, slider_width, 0.03))
+            # Create slider axes to the right of the image
+            divider = make_axes_locatable(ax)
+            slider_ax = divider.append_axes("right", size="5%", pad=0.1)
             slider = Slider(
                 slider_ax,
                 "Slice",
@@ -111,6 +114,7 @@ def display_images(files: list[str]) -> None:
                 pixel_array.shape[0] - 1,
                 valinit=initial_slice,
                 valstep=1,
+                orientation="vertical",
             )
 
             # Update function for slider
