@@ -45,7 +45,6 @@ def print_stats(files: list[str]) -> None:
 
 def display_images(files: list[str]) -> None:
     """Display DICOM images with interactive controls."""
-
     try:
         dcms = [pydicom.dcmread(f) for f in files]
 
@@ -91,8 +90,8 @@ def display_images(files: list[str]) -> None:
             # 3D image - display with slider
             ax = fig.add_subplot(1, num_images, idx)
 
-            # Start with the middle slice
-            initial_slice = pixel_array.shape[0] // 2
+            # Start with the first slice
+            initial_slice = 0
             im = ax.imshow(pixel_array[initial_slice], cmap="gray")
             ax.set_title(
                 f"{filename}\nSlice {initial_slice + 1}/{pixel_array.shape[0]}",
