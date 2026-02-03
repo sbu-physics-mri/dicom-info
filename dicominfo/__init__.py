@@ -30,14 +30,21 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 logger = logging.getLogger(__name__)
 
 
+class DicomReadError(Exception):
+    """Raised when DICOM files cannot be read."""
+
+
+class NoPixelDataError(Exception):
+    """Raised when no DICOM files contain pixel data."""
+
+
 def print_stats(files: list[str]) -> None:
     """Print DICOM information for the files."""
     try:
         dcms = [pydicom.dcmread(f) for f in files]
 
     except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
-        print(f"Files could not be read due to {err}")
-        sys.exit(1)
+        raise DicomReadError(f"Files could not be read due to {err}") from err
 
     for f, dcm in zip(files, dcms, strict=True):
         banner = "*" * 5 + f" {f} " + "*" * 5
@@ -53,8 +60,7 @@ def display_images(
         dcms = [pydicom.dcmread(f) for f in files]
 
     except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
-        print(f"Files could not be read due to {err}")
-        sys.exit(1)
+        raise DicomReadError(f"Files could not be read due to {err}") from err
 
     # Check if any files have pixel data
     files_with_pixels = [
@@ -63,8 +69,7 @@ def display_images(
     ]
 
     if not files_with_pixels:
-        print("No DICOM files with pixel data found.")
-        sys.exit(1)
+        raise NoPixelDataError("No DICOM files with pixel data found.")
 
     # Create figure with subplots for each image
     num_images = len(files_with_pixels)
@@ -188,11 +193,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    print_stats(args.file)
+    try:
+        print_stats(args.file)
 
-    # Display images
-    if args.display:
-        display_images(args.file, max_cols=args.columns)
+        # Display images
+        if args.display:
+            display_images(args.file, max_cols=args.columns)
+
+    except (DicomReadError, NoPixelDataError) as err:
+        print(err)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
