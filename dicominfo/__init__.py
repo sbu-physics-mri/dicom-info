@@ -46,7 +46,7 @@ def print_stats(files: list[str]) -> None:
 
 def display_images(
     files: list[str],
-    max_cols: int = 4,
+    max_cols: int | None = None,
 ) -> None:
     """Display DICOM images with interactive controls."""
     try:
@@ -68,7 +68,8 @@ def display_images(
 
     # Create figure with subplots for each image
     num_images = len(files_with_pixels)
-    cols = min(num_images, max_cols, int(num_images ** .5))
+    max_cols = int(num_images ** .5) if max_cols is None else max_cols
+    cols = min(num_images, max_cols)
     rows = (num_images - 1) // cols + 1
     fig = plt.figure(figsize=(5 * cols, 4 * rows))
 
@@ -177,11 +178,19 @@ def main() -> None:
         action="store_true",
     )
 
+    parser.add_argument(
+        "-c",
+        "--columns",
+        help="Maximum number of columns for image display.",
+        type=int,
+        default=None,
+    )
+
     args = parser.parse_args()
 
     # Display images or print dicom info
     if args.display:
-        display_images(args.file)
+        display_images(args.file, max_cols=args.columns)
     else:
         print_stats(args.file)
 
