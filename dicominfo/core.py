@@ -16,7 +16,8 @@ def print_stats(files: list[str]) -> None:
         dcms = [pydicom.dcmread(f) for f in files]
 
     except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
-        raise DicomReadError(f"Files could not be read due to {err}") from err
+        msg = f"Files could not be read due to {err}"
+        raise DicomReadError(msg) from err
 
     for f, dcm in zip(files, dcms, strict=True):
         banner = "*" * 5 + f" {f} " + "*" * 5
