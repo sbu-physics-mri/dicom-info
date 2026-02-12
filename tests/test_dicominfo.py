@@ -212,3 +212,38 @@ class TestMain:
         
         # validate_files should be called instead of print_stats
         mock_validate_files.assert_called_once()
+
+    @patch("sys.argv", ["dicom-info", "-c", "0", "mock_file.dcm"])
+    def test_zero_columns_exits_with_code_2(self, capsys):
+        """Test that --columns=0 exits with error code 2."""
+        from dicominfo import main
+        
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        
+        assert exc_info.value.code == 2
+        captured = capsys.readouterr()
+        assert "--columns must be a positive integer" in captured.err
+
+    @patch("sys.argv", ["dicom-info", "-c", "-1", "mock_file.dcm"])
+    def test_negative_columns_exits_with_code_2(self, capsys):
+        """Test that --columns=-1 exits with error code 2."""
+        from dicominfo import main
+        
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        
+        assert exc_info.value.code == 2
+        captured = capsys.readouterr()
+        assert "--columns must be a positive integer" in captured.err
+
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "-c", "1", "mock_file.dcm"])
+    def test_positive_columns_is_valid(self, mock_print_stats):
+        """Test that --columns=1 is accepted as valid."""
+        from dicominfo import main
+        
+        main()
+        
+        # Should not raise SystemExit for valid columns value
+        mock_print_stats.assert_called_once()

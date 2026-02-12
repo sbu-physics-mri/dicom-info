@@ -61,6 +61,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Validate columns argument
+    if args.columns is not None and args.columns < 1:
+        parser.error("--columns must be a positive integer")
+
     # Configure logging based on verbosity flags
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
