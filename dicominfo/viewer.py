@@ -18,12 +18,11 @@ from typing import Callable
 
 # Module imports
 import matplotlib.pyplot as plt
-import pydicom
-import pydicom.errors
 from matplotlib.widgets import Slider
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dicominfo.exceptions import DicomReadError, NoPixelDataError
+from dicominfo.exceptions import NoPixelDataError
+from dicominfo.utils import load_dicom_files
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +32,7 @@ def display_images(
     max_cols: int | None = None,
 ) -> None:
     """Display DICOM images with interactive controls."""
-    try:
-        dcms = [pydicom.dcmread(f) for f in files]
-
-    except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
-        msg = f"Files could not be read due to {err}"
-        raise DicomReadError(msg) from err
+    dcms = load_dicom_files(files)
 
     # Check if any files have pixel data
     files_with_pixels = [

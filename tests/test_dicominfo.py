@@ -8,6 +8,40 @@ import pytest
 
 from dicominfo import DicomReadError, NoPixelDataError, display_images, print_stats
 from dicominfo.core import validate_files
+from dicominfo.utils import load_dicom_files
+
+
+class TestLoadDicomFiles:
+    """Tests for load_dicom_files function."""
+
+    def test_raises_dicom_read_error_on_file_not_found(self):
+        """Test that load_dicom_files raises DicomReadError when file is not found."""
+        with pytest.raises(DicomReadError, match="Files could not be read"):
+            load_dicom_files(["/nonexistent/file.dcm"])
+
+    def test_raises_dicom_read_error_on_invalid_dicom(self, tmp_path):
+        """Test that load_dicom_files raises DicomReadError on invalid DICOM file."""
+        # Create a non-DICOM file
+        invalid_file = tmp_path / "invalid.dcm"
+        invalid_file.write_text("This is not a DICOM file")
+        
+        with pytest.raises(DicomReadError, match="Files could not be read"):
+            load_dicom_files([str(invalid_file)])
+
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_returns_list_of_datasets(self, mock_dcmread):
+        """Test that load_dicom_files returns a list of pydicom Dataset objects."""
+        # Mock pydicom.dcmread to return mock Dataset objects
+        mock_dcm1 = MagicMock()
+        mock_dcm2 = MagicMock()
+        mock_dcmread.side_effect = [mock_dcm1, mock_dcm2]
+        
+        result = load_dicom_files(["file1.dcm", "file2.dcm"])
+        
+        assert len(result) == 2
+        assert result[0] == mock_dcm1
+        assert result[1] == mock_dcm2
+        assert mock_dcmread.call_count == 2
 
 
 class TestValidateFiles:
@@ -63,7 +97,7 @@ class TestDisplayImages:
         with pytest.raises(DicomReadError, match="Files could not be read"):
             display_images([str(invalid_file)])
 
-    @patch("dicominfo.viewer.pydicom.dcmread")
+    @patch("dicominfo.utils.pydicom.dcmread")
     def test_raises_no_pixel_data_error_when_no_pixel_data(self, mock_dcmread):
         """Test that display_images raises NoPixelDataError when files have no pixel data."""
         # Mock a DICOM file without pixel_array attribute
