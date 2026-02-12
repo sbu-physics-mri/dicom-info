@@ -10,6 +10,8 @@ from dicominfo._version import __version__
 from dicominfo.core import print_stats
 from dicominfo.exceptions import DicomReadError, NoPixelDataError
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
     """Entry point for the CLI."""
@@ -61,17 +63,22 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Configure logging based on verbosity flags
+    fmt = "%(levelname)s: %(message)s"
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG, format=fmt)
+    elif args.quiet:
+        logging.basicConfig(level=logging.WARNING, format=fmt)
+    else:
+        logging.basicConfig(level=logging.INFO, format=fmt)
+
     # Validate columns argument
     if args.columns is not None and args.columns < 1:
-        parser.error("--columns must be a positive integer")
-
-    # Configure logging based on verbosity flags
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
-    elif args.quiet:
-        logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+        msg = "--columns must be a positive integer"
+        if args.display:
+            parser.error(msg)
+        else:
+            logger.warning("%s. This only applies to the --display flag.", msg)
 
     try:
         # Only print stats if not in quiet mode
