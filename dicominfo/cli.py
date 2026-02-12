@@ -1,5 +1,7 @@
 """CLI argument parsing and main entry point."""
 
+# ruff: noqa: T201
+
 import argparse
 import sys
 
