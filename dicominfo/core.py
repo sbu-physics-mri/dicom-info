@@ -10,6 +10,17 @@ import pydicom.errors
 from dicominfo.exceptions import DicomReadError
 
 
+def validate_files(files: list[str]) -> None:
+    """Validate that DICOM files can be read without printing."""
+    try:
+        for f in files:
+            pydicom.dcmread(f)
+
+    except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
+        msg = f"Files could not be read due to {err}"
+        raise DicomReadError(msg) from err
+
+
 def print_stats(files: list[str]) -> None:
     """Print DICOM information for the files."""
     try:

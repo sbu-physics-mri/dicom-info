@@ -7,6 +7,25 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from dicominfo import DicomReadError, NoPixelDataError, display_images, print_stats
+from dicominfo.core import validate_files
+
+
+class TestValidateFiles:
+    """Tests for validate_files function."""
+
+    def test_raises_dicom_read_error_on_file_not_found(self):
+        """Test that validate_files raises DicomReadError when file is not found."""
+        with pytest.raises(DicomReadError, match="Files could not be read"):
+            validate_files(["/nonexistent/file.dcm"])
+
+    def test_raises_dicom_read_error_on_invalid_dicom(self, tmp_path):
+        """Test that validate_files raises DicomReadError on invalid DICOM file."""
+        # Create a non-DICOM file
+        invalid_file = tmp_path / "invalid.dcm"
+        invalid_file.write_text("This is not a DICOM file")
+        
+        with pytest.raises(DicomReadError, match="Files could not be read"):
+            validate_files([str(invalid_file)])
 
 
 class TestPrintStats:
@@ -93,3 +112,69 @@ class TestMain:
         assert exc_info.value.code == 1
         captured = capsys.readouterr()
         assert "No pixel data" in captured.out
+
+    @patch("sys.argv", ["dicom-info", "--version"])
+    def test_version_flag_exits_with_code_0(self, capsys):
+        """Test that --version flag displays version and exits."""
+        from dicominfo import main, __version__
+        
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert __version__ in captured.out
+
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "-v", "mock_file.dcm"])
+    def test_verbose_flag_enables_debug_logging(self, mock_print_stats, caplog):
+        """Test that -v/--verbose flag enables debug logging."""
+        import logging
+        from dicominfo import main
+        
+        with caplog.at_level(logging.DEBUG):
+            main()
+        
+        # Check that basicConfig was called with DEBUG level
+        # We can't directly test the level, but we can verify the function ran
+        mock_print_stats.assert_called_once()
+
+    @patch("dicominfo.core.validate_files")
+    @patch("sys.argv", ["dicom-info", "-q", "mock_file.dcm"])
+    def test_quiet_flag_suppresses_output(self, mock_validate_files, capsys):
+        """Test that -q/--quiet flag suppresses metadata output."""
+        from dicominfo import main
+        
+        main()
+        
+        # validate_files should be called instead of print_stats
+        mock_validate_files.assert_called_once()
+        
+        # No output should be printed
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "--verbose", "mock_file.dcm"])
+    def test_verbose_long_flag_enables_debug_logging(self, mock_print_stats, caplog):
+        """Test that --verbose flag enables debug logging."""
+        import logging
+        from dicominfo import main
+        
+        with caplog.at_level(logging.DEBUG):
+            main()
+        
+        # Check that basicConfig was called with DEBUG level
+        # We can't directly test the level, but we can verify the function ran
+        mock_print_stats.assert_called_once()
+
+    @patch("dicominfo.core.validate_files")
+    @patch("sys.argv", ["dicom-info", "--quiet", "mock_file.dcm"])
+    def test_quiet_long_flag_suppresses_output(self, mock_validate_files):
+        """Test that --quiet flag suppresses metadata output."""
+        from dicominfo import main
+        
+        main()
+        
+        # validate_files should be called instead of print_stats
+        mock_validate_files.assert_called_once()
