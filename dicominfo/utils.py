@@ -26,5 +26,5 @@ def load_dicom_files(files: list[str]) -> list[pydicom.Dataset]:
     except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
         msg = f"Files could not be read due to {err}"
         raise DicomReadError(msg) from err
-    
+
     return dcms
