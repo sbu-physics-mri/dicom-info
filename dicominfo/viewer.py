@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from matplotlib.image import AxesImage
     from numpy import ndarray
+    from pydicom import Dataset
 
 
 # Python imports
@@ -25,6 +26,51 @@ from dicominfo.exceptions import NoPixelDataError
 from dicominfo.utils import load_dicom_files
 
 logger = logging.getLogger(__name__)
+
+
+def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
+    """Determine the type of DICOM image based on metadata.
+    
+    Args:
+        dcm: PyDICOM dataset object
+        pixel_array: Numpy array of pixel data
+        
+    Returns:
+        One of: "2d_gray", "2d_rgb", "3d_volume", "unsupported"
+    """
+    samples_per_pixel = getattr(dcm, "SamplesPerPixel", 1)
+    num_frames = getattr(dcm, "NumberOfFrames", None)
+    
+    # RGB/Color images: SamplesPerPixel > 1 means color channels
+    # Shape should be (height, width, 3) or (height, width, 4)
+    if samples_per_pixel > 1:
+        if len(pixel_array.shape) == 3 and pixel_array.shape[2] in (3, 4):  # noqa: PLR2004
+            return "2d_rgb"
+        logger.warning(
+            "Unexpected shape %s for SamplesPerPixel=%d",
+            pixel_array.shape,
+            samples_per_pixel,
+        )
+        return "unsupported"
+    
+    # Grayscale images
+    if len(pixel_array.shape) == 2:  # noqa: PLR2004
+        return "2d_gray"
+    
+    # 3D data: could be multi-frame 2D (temporal/cine) or true 3D volume
+    # For now, treat multi-frame as navigable slices
+    if len(pixel_array.shape) == 3:  # noqa: PLR2004
+        # Verify shape is consistent with NumberOfFrames if present
+        if num_frames is not None and pixel_array.shape[0] != num_frames:
+            logger.warning(
+                "NumberOfFrames (%d) doesn't match pixel_array.shape[0] (%d)",
+                num_frames,
+                pixel_array.shape[0],
+            )
+        return "3d_volume"
+    
+    # 4D or higher dimensional data
+    return "unsupported"
 
 
 def display_images(
@@ -60,10 +106,12 @@ def display_images(
     for idx, (filepath, dcm) in enumerate(files_with_pixels, start=1):
         pixel_array = dcm.pixel_array
         filename = Path(filepath).name
+        
+        # Determine image type based on DICOM metadata
+        image_type = _get_image_type(dcm, pixel_array)
 
-        # Determine if 2D or 3D
-        if len(pixel_array.shape) == 2: # noqa: PLR2004
-            # 2D image - simple display
+        if image_type == "2d_gray":
+            # 2D grayscale image - simple display
             ax = fig.add_subplot(rows, cols, idx)
             im = ax.imshow(pixel_array, cmap="gray")
             ax.set_title(filename)
@@ -71,11 +119,19 @@ def display_images(
             plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             axes_images.append((ax, im, None, None))
 
-        elif len(pixel_array.shape) == 3: # noqa: PLR2004
-            # 3D image - display with slider
+        elif image_type == "2d_rgb":
+            # 2D RGB/color image - display without grayscale colormap
+            ax = fig.add_subplot(rows, cols, idx)
+            im = ax.imshow(pixel_array)
+            ax.set_title(filename)
+            ax.axis("off")
+            axes_images.append((ax, im, None, None))
+
+        elif image_type == "3d_volume":
+            # 3D volume or multi-frame 2D - display with slider
             ax = fig.add_subplot(rows, cols, idx)
 
-            # Start with the first slice
+            # Start with the first slice/frame
             initial_slice = 0
             im = ax.imshow(pixel_array[initial_slice], cmap="gray")
             ax.set_title(
@@ -122,6 +178,7 @@ def display_images(
             axes_images.append((ax, im, slider, pixel_array))
 
         else:
+            # Unsupported dimensions
             logger.warning(
                 "%s has unsupported dimensions: %s",
                 filename,

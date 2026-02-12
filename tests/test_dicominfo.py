@@ -4,11 +4,13 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from dicominfo import DicomReadError, NoPixelDataError, display_images, print_stats
 from dicominfo.core import validate_files
 from dicominfo.utils import load_dicom_files
+from dicominfo.viewer import _get_image_type
 
 
 class TestLoadDicomFiles:
@@ -261,3 +263,103 @@ class TestMain:
         
         # Verify display_images was called with the correct columns value
         mock_display_images.assert_called_once_with(["mock_file.dcm"], max_cols=5)
+
+
+class TestGetImageType:
+    """Tests for _get_image_type helper function."""
+
+    def test_2d_grayscale_image(self):
+        """Test that 2D grayscale images are correctly identified."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        pixel_array = np.zeros((256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "2d_gray"
+
+    def test_2d_rgb_image(self):
+        """Test that 2D RGB images are correctly identified."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 3
+        pixel_array = np.zeros((256, 256, 3), dtype=np.uint8)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "2d_rgb"
+
+    def test_2d_rgba_image(self):
+        """Test that 2D RGBA images (4 channels) are correctly identified."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 4
+        pixel_array = np.zeros((256, 256, 4), dtype=np.uint8)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "2d_rgb"
+
+    def test_3d_volume_without_number_of_frames(self):
+        """Test that 3D volume data is correctly identified."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        del mock_dcm.NumberOfFrames  # No NumberOfFrames attribute
+        pixel_array = np.zeros((10, 256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "3d_volume"
+
+    def test_3d_volume_with_number_of_frames(self):
+        """Test that 3D volume with NumberOfFrames is correctly identified."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 10
+        pixel_array = np.zeros((10, 256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "3d_volume"
+
+    def test_warns_on_number_of_frames_mismatch(self, caplog):
+        """Test that warning is logged when NumberOfFrames doesn't match shape."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 15
+        pixel_array = np.zeros((10, 256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "3d_volume"
+        assert "NumberOfFrames" in caplog.text
+        assert "doesn't match" in caplog.text
+
+    def test_unsupported_4d_array(self):
+        """Test that 4D arrays are marked as unsupported."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        pixel_array = np.zeros((10, 10, 256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "unsupported"
+
+    def test_unsupported_rgb_with_wrong_shape(self, caplog):
+        """Test that RGB images with unexpected shapes are marked unsupported."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 3
+        pixel_array = np.zeros((256, 256), dtype=np.uint8)  # Should be 3D
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "unsupported"
+        assert "Unexpected shape" in caplog.text
+
+    def test_defaults_samples_per_pixel_to_1(self):
+        """Test that missing SamplesPerPixel defaults to 1."""
+        mock_dcm = MagicMock()
+        del mock_dcm.SamplesPerPixel  # Remove attribute
+        pixel_array = np.zeros((256, 256), dtype=np.uint16)
+        
+        result = _get_image_type(mock_dcm, pixel_array)
+        
+        assert result == "2d_gray"
