@@ -6,7 +6,7 @@ from collections.abc import Callable
 # Local imports
 from dicominfo._version import __version__
 from dicominfo.cli import main
-from dicominfo.core import print_stats
+from dicominfo.core import print_stats, validate_files
 from dicominfo.exceptions import DicomReadError, NoPixelDataError
 
 
@@ -22,6 +22,7 @@ def __getattr__(name: str) -> Callable:
 __all__ = [
     "main",
     "print_stats",
+    "validate_files",
     "display_images",   # noqa: F822
     "DicomReadError",
     "NoPixelDataError",
