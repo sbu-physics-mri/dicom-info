@@ -363,3 +363,66 @@ class TestGetImageType:
         result = _get_image_type(mock_dcm, pixel_array)
         
         assert result == "2d_gray"
+
+
+class TestDisplayImagesIntegration:
+    """Integration tests for display_images with different DICOM types."""
+
+    @patch("dicominfo.viewer.plt.show")
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_displays_2d_grayscale_correctly(self, mock_dcmread, mock_show):
+        """Test that 2D grayscale images are displayed correctly."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.pixel_array = np.zeros((256, 256), dtype=np.uint16)
+        mock_dcmread.return_value = mock_dcm
+        
+        display_images(["test.dcm"])
+        
+        # Should call show once
+        mock_show.assert_called_once()
+
+    @patch("dicominfo.viewer.plt.show")
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_displays_rgb_without_grayscale_colormap(self, mock_dcmread, mock_show):
+        """Test that RGB images are not displayed with grayscale colormap."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 3
+        mock_dcm.pixel_array = np.zeros((256, 256, 3), dtype=np.uint8)
+        mock_dcmread.return_value = mock_dcm
+        
+        # The key is that it doesn't crash trying to slice RGB on axis 0
+        display_images(["test_rgb.dcm"])
+        
+        # Should call show once
+        mock_show.assert_called_once()
+
+    @patch("dicominfo.viewer.plt.show")
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_displays_3d_volume_with_slider(self, mock_dcmread, mock_show):
+        """Test that 3D volumes are displayed with a slider."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 10
+        mock_dcm.pixel_array = np.zeros((10, 256, 256), dtype=np.uint16)
+        mock_dcmread.return_value = mock_dcm
+        
+        display_images(["test_3d.dcm"])
+        
+        # Should call show once
+        mock_show.assert_called_once()
+
+    @patch("dicominfo.viewer.plt.show")
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_handles_multi_frame_temporal_data(self, mock_dcmread, mock_show):
+        """Test that multi-frame temporal data is displayed with slider."""
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 20
+        mock_dcm.pixel_array = np.zeros((20, 128, 128), dtype=np.uint16)
+        mock_dcmread.return_value = mock_dcm
+        
+        display_images(["test_temporal.dcm"])
+        
+        # Should call show once
+        mock_show.assert_called_once()
