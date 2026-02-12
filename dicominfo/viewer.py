@@ -37,7 +37,8 @@ def display_images(
         dcms = [pydicom.dcmread(f) for f in files]
 
     except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
-        raise DicomReadError(f"Files could not be read due to {err}") from err
+        msg = f"Files could not be read due to {err}"
+        raise DicomReadError(msg) from err
 
     # Check if any files have pixel data
     files_with_pixels = [
@@ -46,7 +47,8 @@ def display_images(
     ]
 
     if not files_with_pixels:
-        raise NoPixelDataError("No DICOM files with pixel data found.")
+        msg = "No DICOM files with pixel data found."
+        raise NoPixelDataError(msg)
 
     # Create figure with subplots for each image
     num_images = len(files_with_pixels)
