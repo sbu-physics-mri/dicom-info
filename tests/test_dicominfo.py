@@ -44,7 +44,7 @@ class TestDisplayImages:
         with pytest.raises(DicomReadError, match="Files could not be read"):
             display_images([str(invalid_file)])
 
-    @patch("dicominfo.pydicom.dcmread")
+    @patch("dicominfo.viewer.pydicom.dcmread")
     def test_raises_no_pixel_data_error_when_no_pixel_data(self, mock_dcmread):
         """Test that display_images raises NoPixelDataError when files have no pixel data."""
         # Mock a DICOM file without pixel_array attribute
@@ -59,7 +59,7 @@ class TestDisplayImages:
 class TestMain:
     """Tests for main CLI function."""
 
-    @patch("dicominfo.print_stats")
+    @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "/nonexistent/file.dcm"])
     def test_exits_with_code_1_on_dicom_read_error(self, mock_print_stats, capsys):
         """Test that main exits with code 1 when DicomReadError is raised."""
@@ -75,8 +75,8 @@ class TestMain:
         captured = capsys.readouterr()
         assert "Test error message" in captured.out
 
-    @patch("dicominfo.display_images")
-    @patch("dicominfo.print_stats")
+    @patch("dicominfo.viewer.display_images")
+    @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "-d", "mock_file.dcm"])
     def test_exits_with_code_1_on_no_pixel_data_error(
         self, mock_print_stats, mock_display_images, capsys

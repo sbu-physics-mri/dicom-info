@@ -1,0 +1,6 @@
+"""Allow running dicominfo as a module with python -m dicominfo."""
+
+from dicominfo.cli import main
+
+if __name__ == "__main__":
+    main()
