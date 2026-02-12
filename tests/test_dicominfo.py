@@ -247,3 +247,17 @@ class TestMain:
         
         # Should not raise SystemExit for valid columns value
         mock_print_stats.assert_called_once()
+
+    @patch("dicominfo.viewer.display_images")
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "-d", "-c", "5", "mock_file.dcm"])
+    def test_positive_columns_passed_to_display_images(
+        self, mock_print_stats, mock_display_images
+    ):
+        """Test that valid --columns value is passed to display_images correctly."""
+        from dicominfo import main
+        
+        main()
+        
+        # Verify display_images was called with the correct columns value
+        mock_display_images.assert_called_once_with(["mock_file.dcm"], max_cols=5)
