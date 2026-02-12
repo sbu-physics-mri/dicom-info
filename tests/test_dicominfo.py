@@ -214,8 +214,8 @@ class TestMain:
         mock_validate_files.assert_called_once()
 
     @patch("sys.argv", ["dicom-info", "-c", "0", "mock_file.dcm"])
-    def test_zero_columns_exits_with_code_2(self, capsys):
-        """Test that --columns=0 exits with error code 2."""
+    def test_zero_columns_shows_validation_error(self, capsys):
+        """Test that --columns=0 shows validation error and exits with code 2."""
         from dicominfo import main
         
         with pytest.raises(SystemExit) as exc_info:
@@ -226,8 +226,8 @@ class TestMain:
         assert "--columns must be a positive integer" in captured.err
 
     @patch("sys.argv", ["dicom-info", "-c", "-1", "mock_file.dcm"])
-    def test_negative_columns_exits_with_code_2(self, capsys):
-        """Test that --columns=-1 exits with error code 2."""
+    def test_negative_columns_shows_validation_error(self, capsys):
+        """Test that --columns=-1 shows validation error and exits with code 2."""
         from dicominfo import main
         
         with pytest.raises(SystemExit) as exc_info:
