@@ -1,0 +1,23 @@
+"""Core DICOM file I/O and metadata extraction."""
+
+# ruff: noqa: T201
+
+from __future__ import annotations
+
+import pydicom
+import pydicom.errors
+
+from dicominfo.exceptions import DicomReadError
+
+
+def print_stats(files: list[str]) -> None:
+    """Print DICOM information for the files."""
+    try:
+        dcms = [pydicom.dcmread(f) for f in files]
+
+    except (FileNotFoundError, pydicom.errors.InvalidDicomError) as err:
+        raise DicomReadError(f"Files could not be read due to {err}") from err
+
+    for f, dcm in zip(files, dcms, strict=True):
+        banner = "*" * 5 + f" {f} " + "*" * 5
+        print(banner, dcm, sep="\n")
