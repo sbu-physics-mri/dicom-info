@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dicominfo.exceptions import NoPixelDataError
+from dicominfo.exceptions import NoPixelDataError, UnsupportedPixelDataError
 from dicominfo.utils import load_dicom_files
 
 logger = logging.getLogger(__name__)
@@ -181,11 +181,9 @@ def display_images(  # noqa: PLR0915
 
         else:
             # Unsupported dimensions
-            logger.warning(
-                "%s has unsupported dimensions: %s",
-                filename,
-                pixel_array.shape,
-            )
+            msg = f"{filename} has unsupported dimensions: {pixel_array.shape}"
+            logger.error("%s", msg)
+            raise UnsupportedPixelDataError(msg)
 
     plt.tight_layout()
     if len(files_with_pixels) == 1 and axes_images[0][2] is not None:
