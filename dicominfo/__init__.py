@@ -13,7 +13,7 @@ from dicominfo.exceptions import DicomReadError, NoPixelDataError
 def __getattr__(name: str) -> Callable:
     """Lazy import display_images to avoid loading matplotlib unless needed."""
     if name == "display_images":
-        from dicominfo.viewer import display_images
+        from dicominfo.viewer import display_images  # noqa: PLC0415
 
         return display_images
     msg = f"module {__name__!r} has no attribute {name!r}"
@@ -21,11 +21,11 @@ def __getattr__(name: str) -> Callable:
 
 
 __all__ = [
-    "main",
-    "print_stats",
-    "validate_files",
-    "display_images",
     "DicomReadError",
     "NoPixelDataError",
     "__version__",
+    "display_images",
+    "main",
+    "print_stats",
+    "validate_files",
 ]

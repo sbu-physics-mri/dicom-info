@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+# Type Checking
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+# Module imports
 import pydicom
 import pydicom.errors
 
@@ -11,7 +16,8 @@ from dicominfo.exceptions import DicomReadError
 
 
 def load_dicom_files(files: list[str]) -> Sequence[pydicom.Dataset]:
-    """Load DICOM files and return a list of pydicom Dataset objects.
+    """
+    Load DICOM files and return a list of pydicom Dataset objects.
 
     Args:
         files: List of file paths to DICOM files.

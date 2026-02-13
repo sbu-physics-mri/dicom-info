@@ -20,11 +20,16 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
 
     parser.add_argument(
-        "file", help="Path to the DICOM file(s).", nargs="+", type=str,
+        "file",
+        help="Path to the DICOM file(s).",
+        nargs="+",
+        type=str,
     )
 
     parser.add_argument(
@@ -43,7 +48,10 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "-v", "--verbose", help="Enable debug logging.", action="store_true",
+        "-v",
+        "--verbose",
+        help="Enable debug logging.",
+        action="store_true",
     )
 
     parser.add_argument(
@@ -79,13 +87,13 @@ def main() -> None:
         else:
             # In quiet mode, still need to validate files can be read
             # but don't print the metadata
-            from dicominfo.core import validate_files
+            from dicominfo.core import validate_files  # noqa: PLC0415
 
             validate_files(args.file)
 
         # Display images - import viewer only if needed
         if args.display:
-            from dicominfo.viewer import display_images
+            from dicominfo.viewer import display_images  # noqa: PLC0415
 
             display_images(args.file, max_cols=args.columns)
 

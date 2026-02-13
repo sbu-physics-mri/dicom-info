@@ -6,6 +6,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from matplotlib.axes import Axes
     from matplotlib.image import AxesImage
     from numpy import ndarray
@@ -14,7 +16,6 @@ if TYPE_CHECKING:
 
 # Python imports
 import logging
-from collections.abc import Callable
 from pathlib import Path
 
 # Module imports
@@ -29,7 +30,8 @@ logger = logging.getLogger(__name__)
 
 
 def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
-    """Determine the type of DICOM image based on metadata.
+    """
+    Determine the type of DICOM image based on metadata.
 
     Args:
         dcm: PyDICOM dataset object
@@ -74,7 +76,10 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
     return "unsupported"
 
 
-def display_images(files: list[str], max_cols: int | None = None) -> None:
+def display_images(  # noqa: PLR0915
+    files: list[str],
+    max_cols: int | None = None,
+) -> None:
     """Display DICOM images with interactive controls."""
     dcms = load_dicom_files(files)
 
@@ -98,9 +103,7 @@ def display_images(files: list[str], max_cols: int | None = None) -> None:
 
     # Store references to manage 3D sliders
     sliders = []
-    axes_images: list[
-        tuple[Axes, AxesImage, Slider | None, ndarray | None]
-    ] = []
+    axes_images: list[tuple[Axes, AxesImage, Slider | None, ndarray | None]] = []
 
     for idx, (filepath, dcm) in enumerate(files_with_pixels, start=1):
         pixel_array = dcm.pixel_array
