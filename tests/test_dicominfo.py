@@ -294,7 +294,10 @@ class TestSliceUpdater:
         updater(3.0)
 
         # Assert
-        mock_im.set_data.assert_called_once_with(data[3])
+        assert mock_im.set_data.call_count == 1
+        # Use numpy testing to compare arrays properly
+        passed_array = mock_im.set_data.call_args[0][0]
+        np.testing.assert_array_equal(passed_array, data[3])
         mock_ax.set_title.assert_called_once_with("test.dcm\nSlice 4/5")
         mock_fig.canvas.draw_idle.assert_called_once()
 
