@@ -63,7 +63,10 @@ exclude = [
     "venv",
 ]
 select = ["ALL"]
-ignore = ["D407"]
+ignore = ["D407", "D212", "COM812", "D203", "ISC001"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = false
 
 [tool.ruff.format]
 quote-style = "double"
