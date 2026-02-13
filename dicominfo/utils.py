@@ -22,6 +22,7 @@ def load_dicom_files(files: list[str]) -> Sequence[pydicom.Dataset]:
     Raises:
         DicomReadError: If files cannot be read due to FileNotFoundError
             or InvalidDicomError.
+
     """
     try:
         dcms = [pydicom.dcmread(f) for f in files]

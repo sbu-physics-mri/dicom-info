@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 # Python imports
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # Module imports
 import matplotlib.pyplot as plt
@@ -74,10 +74,7 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
     return "unsupported"
 
 
-def display_images(
-    files: list[str],
-    max_cols: int | None = None,
-) -> None:
+def display_images(files: list[str], max_cols: int | None = None) -> None:
     """Display DICOM images with interactive controls."""
     dcms = load_dicom_files(files)
 
@@ -101,7 +98,9 @@ def display_images(
 
     # Store references to manage 3D sliders
     sliders = []
-    axes_images: list[tuple[Axes, AxesImage, Slider | None, ndarray | None]] = []
+    axes_images: list[
+        tuple[Axes, AxesImage, Slider | None, ndarray | None]
+    ] = []
 
     for idx, (filepath, dcm) in enumerate(files_with_pixels, start=1):
         pixel_array = dcm.pixel_array

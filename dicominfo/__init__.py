@@ -24,7 +24,7 @@ __all__ = [
     "main",
     "print_stats",
     "validate_files",
-    "display_images",  # noqa: F822
+    "display_images",
     "DicomReadError",
     "NoPixelDataError",
     "__version__",

@@ -2,8 +2,9 @@
 
 # Python imports
 import importlib.metadata
-import tomllib
 from pathlib import Path
+
+import tomllib
 
 try:
     __version__ = importlib.metadata.version("dicom-info")
