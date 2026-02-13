@@ -21,7 +21,7 @@ from dicominfo import (
 )
 from dicominfo.core import validate_files
 from dicominfo.utils import load_dicom_files
-from dicominfo.viewer import _get_image_type
+from dicominfo.viewer import _create_slice_updater, _get_image_type
 
 matplotlib.use('Agg')
 
@@ -269,6 +269,53 @@ class TestDisplayImages:
             match="has unsupported dimensions",
         ):
             display_images(["mock_file.dcm"])
+
+
+class TestSliceUpdater:
+    """Tests for the slider update callback logic."""
+
+    def test_update_sets_correct_slice(self) -> None:
+        """Test that update changes the image to the correct slice."""
+        # Arrange
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_im = MagicMock()
+        mock_slider = MagicMock()
+
+        # 3D volume: 5 slices of 10x10
+        data = np.random.rand(5, 10, 10).astype(np.float32)
+
+        updater = _create_slice_updater(
+            mock_im, mock_ax, data, "test.dcm", mock_slider, mock_fig
+        )
+
+        # Act - simulate slider moved to index 3
+        mock_slider.val = 3
+        updater(3.0)
+
+        # Assert
+        mock_im.set_data.assert_called_once_with(data[3])
+        mock_ax.set_title.assert_called_once_with("test.dcm\nSlice 4/5")
+        mock_fig.canvas.draw_idle.assert_called_once()
+
+    def test_update_logs_debug_message(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that update logs the slider value."""
+        import logging
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_im = MagicMock()
+        mock_slider = MagicMock()
+        mock_slider.val = 2
+
+        updater = _create_slice_updater(
+            mock_im, mock_ax, np.zeros((5, 10, 10)), "file.dcm", mock_slider, mock_fig
+        )
+
+        with caplog.at_level(logging.DEBUG, logger="dicominfo.viewer"):
+            updater(2.5)  # Note: function uses int(sldr.val), not the parameter
+
+        assert "Slider at slice 2.500000 for file.dcm" in caplog.text
 
 
 class TestMain:

@@ -19,6 +19,8 @@ import logging
 from pathlib import Path
 
 # Module imports
+import matplotlib as mpl
+import matplotlib.figure
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -76,7 +78,29 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
     return "unsupported"
 
 
-def display_images(  # noqa: PLR0915
+def _create_slice_updater(  # noqa: PLR0913
+    image_obj: AxesImage,
+    axis: Axes,
+    data: ndarray,
+    fname: str,
+    slider: Slider,
+    fig: mpl.figure.Figure,
+) -> Callable[[float], None]:
+    """Factory for slider update callbacks."""  # noqa: D401
+
+    def update(val: float) -> None:
+        slice_idx = int(slider.val)
+        image_obj.set_data(data[slice_idx])
+        axis.set_title(
+            f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}",
+        )
+        fig.canvas.draw_idle()
+        logger.debug("Slider at slice %f for %s", val, fname)
+
+    return update
+
+
+def display_images(
     files: list[str],
     max_cols: int | None = None,
 ) -> None:
@@ -154,27 +178,15 @@ def display_images(  # noqa: PLR0915
                 orientation="vertical",
             )
 
-            # Update function for slider
-            def make_update(
-                image_obj: AxesImage,
-                axis: Axes,
-                data: ndarray,
-                fname: str,
-                sldr: Slider,
-            ) -> Callable[[float], None]:
-                def update(val: float) -> None:
-                    slice_idx = int(sldr.val)
-                    image_obj.set_data(data[slice_idx])
-                    axis.set_title(
-                        f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}",
-                    )
-                    fig.canvas.draw_idle()
-                    logger.debug("Slider at slice %f for %s", val, fname)
-
-                return update
-
             slider.on_changed(
-                make_update(im, ax, pixel_array, filename, slider),
+                _create_slice_updater(
+                    im,
+                    ax,
+                    pixel_array,
+                    filename,
+                    slider,
+                    fig,
+                ),
             )
             sliders.append(slider)
             axes_images.append((ax, im, slider, pixel_array))
