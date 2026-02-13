@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pydicom
 import pydicom.errors
 
 from dicominfo.exceptions import DicomReadError
 
 
-def load_dicom_files(files: list[str]) -> list[pydicom.Dataset]:
+def load_dicom_files(files: list[str]) -> Sequence[pydicom.Dataset]:
     """Load DICOM files and return a list of pydicom Dataset objects.
 
     Args:
