@@ -14,6 +14,7 @@ import pytest
 from dicominfo import (
     DicomReadError,
     NoPixelDataError,
+    UnsupportedPixelDataError,
     display_images,
     print_stats,
 )
@@ -22,6 +23,79 @@ from dicominfo.utils import load_dicom_files
 from dicominfo.viewer import _get_image_type
 
 matplotlib.use('Agg')
+
+class TestLazyImport:
+    """Tests for __getattr__ lazy loading mechanism."""
+
+    def test_display_images_lazy_import(self) -> None:
+        """Test that display_images is loaded lazily."""
+        import sys
+
+        # Remove dicominfo modules from cache to test fresh import
+        modules_to_remove = [
+            mod for mod in sys.modules if mod.startswith("dicominfo")
+        ]
+        for mod in modules_to_remove:
+            del sys.modules[mod]
+
+        # Import dicominfo fresh
+        import dicominfo
+
+        # Verify viewer not yet loaded
+        assert "dicominfo.viewer" not in sys.modules
+
+        # Access display_images (triggers __getattr__)
+        func = dicominfo.display_images
+
+        # Verify it was imported correctly
+        assert "dicominfo.viewer" in sys.modules
+        assert callable(func)
+
+    def test_invalid_attribute_raises_error(self) -> None:
+        """Test that invalid attributes raise AttributeError."""
+        import dicominfo
+
+        with pytest.raises(AttributeError, match="module 'dicominfo' has no attribute 'nonexistent'"):
+            _ = dicominfo.nonexistent
+
+    def test_other_attributes_work_normally(self) -> None:
+        """Test that non-lazy attributes are accessible immediately."""
+        import dicominfo
+
+        # These should work without triggering lazy import of viewer
+        assert hasattr(dicominfo, "__version__")
+        assert hasattr(dicominfo, "DicomReadError")
+        assert hasattr(dicominfo, "main")
+
+
+class TestVersion:
+    """Tests for version module."""
+
+    def test_version_is_string(self) -> None:
+        """Test that __version__ is a string."""
+        from dicominfo import __version__
+
+        assert isinstance(__version__, str)
+
+    def test_version_matches_semantic_versioning(self) -> None:
+        """Test that version follows semver pattern (x.y.z)."""
+        import re
+
+        from dicominfo import __version__
+
+        # Match semantic versioning: MAJOR.MINOR.PATCH[-prerelease][+build]
+        semver_pattern = r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$"
+        assert re.match(semver_pattern, __version__), (
+            f"Version '{__version__}' does not match semantic versioning"
+        )
+
+    def test_version_importable_from_root(self) -> None:
+        """Test that version is importable from package root."""
+        from dicominfo import __version__
+
+        assert __version__ is not None
+        assert len(__version__) > 0
+
 
 class TestLoadDicomFiles:
     """Tests for load_dicom_files function."""
@@ -136,9 +210,57 @@ class TestDisplayImages:
         ):
             display_images(["mock_file.dcm"])
 
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_raises_unsupported_pixel_data_error_with_unknown_image_type(
+        self, mock_dcmread: Callable
+    ) -> None:
+        """Test that display_images raises UnsupportedPixelDataError.
+
+        When files have incorrect pixel data shape.
+        """
+        # Mock a DICOM file with 4D pixel array (e.g., time series with multiple slices)
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 10
+        # 4D array: (time, slices, height, width) - currently unsupported
+        mock_dcm.pixel_array = np.zeros((5, 10, 256, 256), dtype=np.uint16)
+        mock_dcmread.return_value = mock_dcm
+
+        with pytest.raises(
+            UnsupportedPixelDataError,
+            match="has unsupported dimensions",
+        ):
+            display_images(["mock_file.dcm"])
+
 
 class TestMain:
     """Tests for main CLI function."""
+
+    @patch("dicominfo.viewer.display_images")
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "--display", "mock_file.dcm"])
+    def test_exits_with_code_1_on_unsupported_pixel_error(
+        self,
+        mock_print_stats: Callable,  # noqa: ARG002
+        mock_display_images: Callable,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that main exits with code 1 on UnsupportedPixelDataError."""
+        from dicominfo import main
+        from dicominfo.exceptions import UnsupportedPixelDataError
+
+        # Mock print_stats to raise DicomReadError
+        mock_display_images.side_effect = UnsupportedPixelDataError(
+            "Unsupported Pixel Data",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Unsupported Pixel Data" in captured.out
+
 
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "/nonexistent/file.dcm"])
@@ -147,6 +269,7 @@ class TestMain:
     ) -> None:
         """Test that main exits with code 1 when DicomReadError is raised."""
         from dicominfo import main
+        from dicominfo.exceptions import DicomReadError
 
         # Mock print_stats to raise DicomReadError
         mock_print_stats.side_effect = DicomReadError("Test error message")
@@ -169,6 +292,7 @@ class TestMain:
     ) -> None:
         """Test that main exits with code 1 when NoPixelDataError is raised."""
         from dicominfo import main
+        from dicominfo.exceptions import NoPixelDataError
 
         # Mock display_images to raise NoPixelDataError
         mock_display_images.side_effect = NoPixelDataError("No pixel data")
@@ -287,6 +411,22 @@ class TestMain:
         assert exc_info.value.code == 2
         captured = capsys.readouterr()
         assert "--columns must be a positive integer" in captured.err
+
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "-c", "0", "mock_file.dcm"])
+    def test_invalid_columns_with_no_display_is_ok(
+        self,
+        mock_print_stats: Callable,
+        caplog: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that --columns=0 is valid if no --display flag is passed."""
+        from dicominfo import main
+
+        main()
+
+        mock_print_stats.assert_called_once()
+
+        assert "only applies to the --display flag" in caplog.text
 
     @patch("dicominfo.viewer.display_images")
     @patch("dicominfo.cli.print_stats")
