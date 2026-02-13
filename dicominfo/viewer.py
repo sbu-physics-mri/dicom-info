@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 # Python imports
 import logging
-from collections.abc import Callable
 from pathlib import Path
+from typing import Callable
 
 # Module imports
 import matplotlib.pyplot as plt
@@ -74,7 +74,10 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
     return "unsupported"
 
 
-def display_images(files: list[str], max_cols: int | None = None) -> None:
+def display_images(
+    files: list[str],
+    max_cols: int | None = None,
+) -> None:
     """Display DICOM images with interactive controls."""
     dcms = load_dicom_files(files)
 
@@ -132,7 +135,7 @@ def display_images(files: list[str], max_cols: int | None = None) -> None:
             initial_slice = 0
             im = ax.imshow(pixel_array[initial_slice], cmap="gray")
             ax.set_title(
-                f"{filename}\nSlice {initial_slice + 1}/{pixel_array.shape[0]}"
+                f"{filename}\nSlice {initial_slice + 1}/{pixel_array.shape[0]}",
             )
             ax.axis("off")
 
@@ -160,20 +163,26 @@ def display_images(files: list[str], max_cols: int | None = None) -> None:
                 def update(val: float) -> None:
                     slice_idx = int(sldr.val)
                     image_obj.set_data(data[slice_idx])
-                    axis.set_title(f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}")
+                    axis.set_title(
+                        f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}",
+                    )
                     fig.canvas.draw_idle()
                     logger.debug("Slider at slice %f for %s", val, fname)
 
                 return update
 
-            slider.on_changed(make_update(im, ax, pixel_array, filename, slider))
+            slider.on_changed(
+                make_update(im, ax, pixel_array, filename, slider),
+            )
             sliders.append(slider)
             axes_images.append((ax, im, slider, pixel_array))
 
         else:
             # Unsupported dimensions
             logger.warning(
-                "%s has unsupported dimensions: %s", filename, pixel_array.shape
+                "%s has unsupported dimensions: %s",
+                filename,
+                pixel_array.shape,
             )
 
     plt.tight_layout()

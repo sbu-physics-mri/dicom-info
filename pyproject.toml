@@ -30,9 +30,8 @@ dicom-info = "dicominfo:main"
 package = true
 
 [tool.ruff]
-line-length = 88
+line-length = 79
 indent-width = 4
-target-version = "py310"
 
 [tool.ruff.lint]
 exclude = [
@@ -63,8 +62,8 @@ exclude = [
     "site-packages",
     "venv",
 ]
-select = ["E", "F", "I", "UP"]
-ignore = []
+select = ["ALL"]
+ignore = ["D407"]
 
 [tool.ruff.format]
 quote-style = "double"

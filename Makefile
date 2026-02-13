@@ -3,7 +3,7 @@
 # Default target
 help:
 	@echo "Available targets:"
-	@echo "  make install   - Install package in editable mode with dev dependencies"
+	@echo "  make install   - Install package with dev dependencies using uv"
 	@echo "  make lint      - Run ruff check on dicominfo/"
 	@echo "  make format    - Run ruff format --check (fails if format differs)"
 	@echo "  make fix       - Apply ruff fixes and formatting"
@@ -15,32 +15,32 @@ help:
 
 # Install package with dev dependencies
 install:
-	pip install -e .[dev]
+	uv sync --all-extras
 
 # Run ruff linting
 lint:
-	ruff check dicominfo/
+	uv run ruff check dicominfo/
 
 # Check code formatting
 format:
-	ruff format --check dicominfo/
+	uv run ruff format --check dicominfo/
 
 # Apply fixes and formatting
 fix:
-	ruff check --fix dicominfo/
-	ruff format dicominfo/
+	uv run ruff check --fix dicominfo/
+	uv run ruff format dicominfo/
 
 # Run mypy type checking
 type:
-	mypy dicominfo/
+	uv run mypy dicominfo/
 
 # Run tests
 test:
-	pytest
+	uv run pytest
 
 # Run tests with coverage
 coverage:
-	pytest --cov=dicominfo --cov-report=term --cov-report=xml --cov-fail-under=80
+	uv run pytest --cov=dicominfo --cov-report=term --cov-report=xml --cov-fail-under=80
 
 # Run all CI checks
 ci: format lint type coverage

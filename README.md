@@ -75,12 +75,15 @@ This project is licensed under the GNU GPL version 3 license which can be found 
 
 ### Setup
 
-To set up the development environment:
+This project uses [uv](https://astral.sh/uv) for dependency management. To set up the development environment:
 
 ```bash
 # Clone the repository
 git clone https://github.com/sbu-physics-mri/dicom-info.git
 cd dicom-info
+
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Install the package with dev dependencies
 make install

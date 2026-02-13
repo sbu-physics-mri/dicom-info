@@ -15,13 +15,22 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Entry point for the CLI."""
-    parser = argparse.ArgumentParser(description="Print DICOM file information.")
-
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
+    parser = argparse.ArgumentParser(
+        description="Print DICOM file information.",
     )
 
-    parser.add_argument("file", help="Path to the DICOM file(s).", nargs="+", type=str)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
+
+    parser.add_argument(
+        "file",
+        help="Path to the DICOM file(s).",
+        nargs="+",
+        type=str,
+    )
 
     parser.add_argument(
         "-d",
@@ -39,7 +48,10 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "-v", "--verbose", help="Enable debug logging.", action="store_true"
+        "-v",
+        "--verbose",
+        help="Enable debug logging.",
+        action="store_true",
     )
 
     parser.add_argument(
