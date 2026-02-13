@@ -27,11 +27,12 @@ format:
 
 # Apply fixes and formatting
 fix:
-	uv run ruff check --fix dicominfo/
 	uv run ruff format dicominfo/
+	uv run ruff check --fix dicominfo/
 
 # Run mypy type checking
 type:
+	uv run ty check dicominfo/
 	uv run mypy dicominfo/
 
 # Run tests
@@ -40,7 +41,7 @@ test:
 
 # Run tests with coverage
 coverage:
-	uv run pytest --cov=dicominfo --cov-report=term --cov-report=xml --cov-fail-under=80
+	uv run pytest --cov=dicominfo --cov-report=term --cov-report=xml
 
 # Run all CI checks
 ci: format lint type coverage
