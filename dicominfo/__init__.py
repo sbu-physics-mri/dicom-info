@@ -7,7 +7,11 @@ from collections.abc import Callable
 from dicominfo._version import __version__
 from dicominfo.cli import main
 from dicominfo.core import print_stats, validate_files
-from dicominfo.exceptions import DicomReadError, NoPixelDataError
+from dicominfo.exceptions import (
+    DicomReadError,
+    NoPixelDataError,
+    UnsupportedPixelDataError,
+)
 
 
 def __getattr__(name: str) -> Callable:
@@ -23,6 +27,7 @@ def __getattr__(name: str) -> Callable:
 __all__ = [
     "DicomReadError",
     "NoPixelDataError",
+    "UnsupportedPixelDataError",
     "__version__",
     "display_images",
     "main",
