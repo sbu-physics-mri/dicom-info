@@ -643,7 +643,10 @@ class TestWithPydicomExamples:
         assert len(captured.out) > 0
 
     @patch("dicominfo.viewer.plt.show")
-    def test_display_ct_image(self, mock_show: Callable) -> None:
+    def test_display_ct_image(
+        self,
+        mock_show: Callable,
+    ) -> None:
         """Test displaying CT example with real pixel data."""
         from pydicom import examples
 
