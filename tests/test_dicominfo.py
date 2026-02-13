@@ -516,3 +516,200 @@ class TestDisplayImagesIntegration:
 
         # Should call show once
         mock_show.assert_called_once()
+
+
+class TestWithPydicomExamples:
+    """Tests using real pydicom example datasets instead of mocks."""
+
+    def test_load_dicom_files_with_ct_example(self) -> None:
+        """Test loading the CT example from pydicom."""
+        from pydicom import examples
+
+        ct_path = str(examples.get_path("ct"))
+        result = load_dicom_files([ct_path])
+
+        assert len(result) == 1
+        assert hasattr(result[0], "pixel_array")
+        assert result[0].Modality == "CT"
+
+    def test_load_multiple_example_files(self) -> None:
+        """Test loading multiple real example files."""
+        from pydicom import examples
+
+        paths = [
+            str(examples.get_path("ct")),
+            str(examples.get_path("mr")),
+        ]
+        result = load_dicom_files(paths)
+
+        assert len(result) == 2
+        assert result[0].Modality == "CT"
+        assert result[1].Modality == "MR"
+
+    def test_validate_files_with_real_examples(self) -> None:
+        """Test validation with real example files - should not raise."""
+        from pydicom import examples
+
+        paths = [
+            str(examples.get_path("ct")),
+            str(examples.get_path("mr")),
+            str(examples.get_path("rgb_color")),
+        ]
+        # Should complete without raising DicomReadError
+        validate_files(paths)
+
+    def test_get_image_type_ct_is_2d_gray(self) -> None:
+        """Test that CT example is identified as 2D grayscale."""
+        from pydicom import examples
+
+        dcm = examples.ct
+        image_type = _get_image_type(dcm, dcm.pixel_array)
+
+        # CT_small.dcm is a single 2D slice
+        assert image_type == "2d_gray"
+        assert dcm.SamplesPerPixel == 1
+
+    def test_get_image_type_mr_is_2d_gray(self) -> None:
+        """Test that MR example is identified as 2D grayscale."""
+        from pydicom import examples
+
+        dcm = examples.mr
+        image_type = _get_image_type(dcm, dcm.pixel_array)
+
+        assert image_type == "2d_gray"
+        assert len(dcm.pixel_array.shape) == 2
+
+    def test_get_image_type_rgb_color(self) -> None:
+        """Test that RGB color example is identified correctly."""
+        from pydicom import examples
+
+        dcm = examples.rgb_color
+        image_type = _get_image_type(dcm, dcm.pixel_array)
+
+        assert image_type == "2d_rgb"
+        assert dcm.SamplesPerPixel == 3
+        assert len(dcm.pixel_array.shape) == 3
+        assert dcm.pixel_array.shape[2] == 3
+
+    def test_get_image_type_ybr_multi_frame(self) -> None:
+        """Test that YBR multi-frame is identified as 3D volume."""
+        from pydicom import examples
+
+        dcm = examples.ybr_color
+        image_type = _get_image_type(dcm, dcm.pixel_array)
+
+        # YBR color is a multi-frame image RGB image
+        # which is currently unsupported
+        assert image_type == "unsupported"
+        assert len(dcm.pixel_array.shape) == 4
+
+    def test_get_image_type_palette_color(self) -> None:
+        """Test palette color image handling."""
+        from pydicom import examples
+
+        dcm = examples.palette_color
+        image_type = _get_image_type(dcm, dcm.pixel_array)
+
+        # Palette color typically has samples_per_pixel=1 but color map
+        # Should be identified based on actual pixel array shape
+        assert image_type in ("2d_gray", "3d_volume")
+
+    def test_print_stats_with_ct_example(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test print_stats output with real CT data."""
+        from pydicom import examples
+
+        ct_path = str(examples.get_path("ct"))
+        print_stats([ct_path])
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Check that expected metadata appears in output
+        assert "CT" in output or "Patient" in output
+        assert "CompressedSamples" in output or "CT1" in output
+
+    def test_print_stats_multiple_files(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """Test print_stats with multiple real files."""
+        from pydicom import examples
+
+        paths = [str(examples.get_path("ct")), str(examples.get_path("mr"))]
+        print_stats(paths)
+
+        captured = capsys.readouterr()
+        # Should have information about both files
+        assert len(captured.out) > 0
+
+    @patch("dicominfo.viewer.plt.show")
+    def test_display_ct_image(self, mock_show: Callable) -> None:
+        """Test displaying CT example with real pixel data."""
+        from pydicom import examples
+
+        ct_path = str(examples.get_path("ct"))
+        display_images([ct_path])
+
+        mock_show.assert_called_once()
+
+    @patch("dicominfo.viewer.plt.show")
+    def test_display_rgb_color_image(self, mock_show: Callable) -> None:
+        """Test displaying RGB color example."""
+        from pydicom import examples
+
+        rgb_path = str(examples.get_path("rgb_color"))
+        display_images([rgb_path])
+
+        mock_show.assert_called_once()
+
+    @patch("dicominfo.viewer.plt.show")
+    def test_display_multiple_real_images(self, mock_show: Callable) -> None:
+        """Test displaying multiple different real images."""
+        from pydicom import examples
+
+        paths = [
+            str(examples.get_path("ct")),
+            str(examples.get_path("mr")),
+            str(examples.get_path("rgb_color")),
+        ]
+        display_images(paths, max_cols=2)
+
+        mock_show.assert_called_once()
+
+    def test_display_images_skips_waveform_no_pixels(self) -> None:
+        """Test that waveform example (no pixel data) is handled gracefully."""
+        from pydicom import examples
+
+        waveform_path = str(examples.get_path("waveform"))
+        
+        # Waveform files don't have pixel_array, should raise NoPixelDataError
+        # if that's the only file, or skip if mixed with images
+        with pytest.raises(NoPixelDataError):
+            display_images([waveform_path])
+
+    @patch("dicominfo.viewer.plt.show")
+    def test_display_mixed_valid_and_waveform(
+        self,
+        mock_show: Callable,
+    ) -> None:
+        """Test displaying CT + waveform - only CT should display."""
+        from pydicom import examples
+
+        paths = [
+            str(examples.get_path("ct")),
+            str(examples.get_path("waveform")),
+        ]
+        # Should only show CT, skip waveform (no pixel data)
+        display_images(paths)
+        
+        mock_show.assert_called_once()
+
+    def test_jpeg2000_example_loads_correctly(self) -> None:
+        """Test that JPEG2K compressed example loads without errors."""
+        from pydicom import examples
+
+        jpeg_path = str(examples.get_path("jpeg2k"))
+        dcm = load_dicom_files([jpeg_path])[0]
+
+        # Should have pixel_array even if compressed
+        assert hasattr(dcm, "pixel_array")
