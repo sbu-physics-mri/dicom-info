@@ -17,7 +17,7 @@ def main() -> None:
     """Entry point for the CLI."""
     parser = argparse.ArgumentParser(
         description="Print DICOM file information.",
-     )
+    )
 
     parser.add_argument(
         "--version",
@@ -88,11 +88,13 @@ def main() -> None:
             # In quiet mode, still need to validate files can be read
             # but don't print the metadata
             from dicominfo.core import validate_files
+
             validate_files(args.file)
 
         # Display images - import viewer only if needed
         if args.display:
             from dicominfo.viewer import display_images
+
             display_images(args.file, max_cols=args.columns)
 
     except (DicomReadError, NoPixelDataError) as err:

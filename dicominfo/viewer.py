@@ -30,17 +30,18 @@ logger = logging.getLogger(__name__)
 
 def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
     """Determine the type of DICOM image based on metadata.
-    
+
     Args:
         dcm: PyDICOM dataset object
         pixel_array: Numpy array of pixel data
-        
+
     Returns:
         One of: "2d_gray", "2d_rgb", "3d_volume", "unsupported"
+
     """
     samples_per_pixel = getattr(dcm, "SamplesPerPixel", 1)
     num_frames = getattr(dcm, "NumberOfFrames", None)
-    
+
     # RGB/Color images: SamplesPerPixel > 1 means color channels
     # Shape should be (height, width, 3) or (height, width, 4)
     if samples_per_pixel > 1:
@@ -52,11 +53,11 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
             samples_per_pixel,
         )
         return "unsupported"
-    
+
     # Grayscale images
     if len(pixel_array.shape) == 2:  # noqa: PLR2004
         return "2d_gray"
-    
+
     # 3D data: could be multi-frame 2D (temporal/cine) or true 3D volume
     # For now, treat multi-frame as navigable slices
     if len(pixel_array.shape) == 3:  # noqa: PLR2004
@@ -68,7 +69,7 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
                 pixel_array.shape[0],
             )
         return "3d_volume"
-    
+
     # 4D or higher dimensional data
     return "unsupported"
 
@@ -82,7 +83,8 @@ def display_images(
 
     # Check if any files have pixel data
     files_with_pixels = [
-        (f, dcm) for f, dcm in zip(files, dcms, strict=True)
+        (f, dcm)
+        for f, dcm in zip(files, dcms, strict=True)
         if hasattr(dcm, "pixel_array")
     ]
 
@@ -92,21 +94,19 @@ def display_images(
 
     # Create figure with subplots for each image
     num_images = len(files_with_pixels)
-    max_cols = int(num_images ** .5) if max_cols is None else max_cols
+    max_cols = int(num_images**0.5) if max_cols is None else max_cols
     cols = min(num_images, max_cols)
     rows = (num_images - 1) // cols + 1
     fig = plt.figure(figsize=(5 * cols, 4 * rows))
 
     # Store references to manage 3D sliders
     sliders = []
-    axes_images: list[
-        tuple[Axes, AxesImage, Slider | None, ndarray | None]
-    ] = []
+    axes_images: list[tuple[Axes, AxesImage, Slider | None, ndarray | None]] = []
 
     for idx, (filepath, dcm) in enumerate(files_with_pixels, start=1):
         pixel_array = dcm.pixel_array
         filename = Path(filepath).name
-        
+
         # Determine image type based on DICOM metadata
         image_type = _get_image_type(dcm, pixel_array)
 
