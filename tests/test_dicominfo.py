@@ -3,6 +3,7 @@
 # ruff: noqa: S101 PLR2004
 
 # Python imports
+import importlib
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -95,6 +96,43 @@ class TestVersion:
 
         assert __version__ is not None
         assert len(__version__) > 0
+
+    @patch("importlib.metadata.version")
+    def test_dev_version(
+        self,
+        mock_metadata_version: Callable,
+    ) -> None:
+        """Test that the version is dev version.
+
+        When the package cannot be installed.
+
+        """
+        from importlib.metadata import PackageNotFoundError
+        mock_metadata_version.side_effect = PackageNotFoundError
+
+        from dicominfo import _version
+        importlib.reload(_version)
+
+        assert "+dev" in _version.__version__
+
+    @patch("tomllib.load")
+    @patch("importlib.metadata.version")
+    def test_toml_decode_error(
+        self,
+        mock_metadata_version: Callable,
+        mock_tomllib_load: Callable,
+    ) -> None:
+        """Check a runtime error is raised on TOMLDecodeError."""
+        from importlib.metadata import PackageNotFoundError
+        mock_metadata_version.side_effect = PackageNotFoundError
+
+        from dicominfo import _version
+
+        from tomllib import TOMLDecodeError
+        mock_tomllib_load.side_effect = TOMLDecodeError
+
+        with pytest.raises(RuntimeError, match="Failed to parse"):
+            importlib.reload(_version)
 
 
 class TestLoadDicomFiles:
