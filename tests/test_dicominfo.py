@@ -215,8 +215,8 @@ class TestMain:
         # validate_files should be called instead of print_stats
         mock_validate_files.assert_called_once()
 
-    @patch("sys.argv", ["dicom-info", "-c", "0", "mock_file.dcm"])
-    def test_zero_columns_shows_validation_error(self, capsys):
+    @patch("sys.argv", ["dicom-info", "--display", "-c", "0", "mock_file.dcm"])
+    def test_zero_columns_shows_validation_error(self, capsys) -> None:
         """Test that --columns=0 shows validation error and exits with code 2."""
         from dicominfo import main
         
@@ -227,8 +227,8 @@ class TestMain:
         captured = capsys.readouterr()
         assert "--columns must be a positive integer" in captured.err
 
-    @patch("sys.argv", ["dicom-info", "-c", "-1", "mock_file.dcm"])
-    def test_negative_columns_shows_validation_error(self, capsys):
+    @patch("sys.argv", ["dicom-info", "--display", "-c", "-1", "mock_file.dcm"])
+    def test_negative_columns_shows_validation_error(self, capsys) -> None:
         """Test that --columns=-1 shows validation error and exits with code 2."""
         from dicominfo import main
         
@@ -240,8 +240,8 @@ class TestMain:
         assert "--columns must be a positive integer" in captured.err
 
     @patch("dicominfo.cli.print_stats")
-    @patch("sys.argv", ["dicom-info", "-c", "1", "mock_file.dcm"])
-    def test_positive_columns_is_valid(self, mock_print_stats):
+    @patch("sys.argv", ["dicom-info", "--display", "-c", "1", "mock_file.dcm"])
+    def test_positive_columns_is_valid(self, mock_print_stats) -> None:
         """Test that --columns=1 is accepted as valid."""
         from dicominfo import main
         
