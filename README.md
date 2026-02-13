@@ -1,5 +1,12 @@
 # dicom-info
 
+[![CI](https://github.com/sbu-physics-mri/dicom-info/actions/workflows/ci.yml/badge.svg)](https://github.com/sbu-physics-mri/dicom-info/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/sbu-physics-mri/dicom-info/actions/workflows/ci.yml)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type checking: mypy](https://img.shields.io/badge/type%20checking-mypy-blue.svg)](https://github.com/python/mypy)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 A command-line tool for displaying DICOM file information.
 
 ## Description
