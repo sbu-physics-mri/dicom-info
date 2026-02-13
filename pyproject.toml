@@ -10,9 +10,6 @@ dependencies = [
     "numpy>=1.24.0",
 ]
 
-[tool.uv]
-package = true
-
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
@@ -20,3 +17,49 @@ dev = [
 
 [project.scripts]
 dicom-info = "dicominfo:main"
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+
+[tool.ruff.lint]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+select = ["ALL"]
+ignore = ["D407"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = true
+line-ending = "auto"
+docstring-code-format = true

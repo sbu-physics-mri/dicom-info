@@ -10,13 +10,13 @@ from dicominfo.exceptions import DicomReadError
 
 def load_dicom_files(files: list[str]) -> list[pydicom.Dataset]:
     """Load DICOM files and return a list of pydicom Dataset objects.
-    
+
     Args:
         files: List of file paths to DICOM files.
-        
+
     Returns:
         List of pydicom Dataset objects.
-        
+
     Raises:
         DicomReadError: If files cannot be read due to FileNotFoundError
             or InvalidDicomError.
