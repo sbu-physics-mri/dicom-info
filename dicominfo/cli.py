@@ -8,7 +8,11 @@ import sys
 
 from dicominfo._version import __version__
 from dicominfo.core import print_stats
-from dicominfo.exceptions import DicomReadError, NoPixelDataError
+from dicominfo.exceptions import (
+    DicomReadError,
+    NoPixelDataError,
+    UnsupportedPixelDataError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +101,6 @@ def main() -> None:
 
             display_images(args.file, max_cols=args.columns)
 
-    except (DicomReadError, NoPixelDataError) as err:
+    except (DicomReadError, NoPixelDataError, UnsupportedPixelDataError) as err:
         print(err)
         sys.exit(1)
