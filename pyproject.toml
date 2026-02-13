@@ -10,6 +10,14 @@ dependencies = [
     "numpy>=1.24.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
@@ -22,8 +30,9 @@ dicom-info = "dicominfo:main"
 package = true
 
 [tool.ruff]
-line-length = 79
+line-length = 88
 indent-width = 4
+target-version = "py310"
 
 [tool.ruff.lint]
 exclude = [
@@ -54,8 +63,8 @@ exclude = [
     "site-packages",
     "venv",
 ]
-select = ["ALL"]
-ignore = ["D407"]
+select = ["E", "F", "I", "UP"]
+ignore = []
 
 [tool.ruff.format]
 quote-style = "double"
@@ -63,3 +72,22 @@ indent-style = "space"
 skip-magic-trailing-comma = true
 line-ending = "auto"
 docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+
+[tool.coverage.run]
+source = ["dicominfo"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
