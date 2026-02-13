@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-import pydicom
-
 from dicominfo.utils import load_dicom_files
 
 

@@ -71,6 +71,53 @@ The tool will exit with status code 1 if:
 
 This project is licensed under the GNU GPL version 3 license which can be found [here](LICENSE).
 
+## Development
+
+### Setup
+
+This project uses [uv](https://astral.sh/uv) for dependency management. To set up the development environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/sbu-physics-mri/dicom-info.git
+cd dicom-info
+
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install the package with dev dependencies
+make install
+```
+
+### Running Tests and Checks
+
+This project uses a Makefile as the single source of truth for development commands. All commands can be run locally and are also used in CI.
+
+```bash
+# Run all CI checks (format, lint, type, coverage)
+make ci
+
+# Individual commands:
+make lint      # Run ruff linting
+make format    # Check code formatting
+make type      # Run mypy type checking
+make test      # Run pytest
+make coverage  # Run tests with coverage report (80% minimum)
+
+# Apply fixes:
+make fix       # Auto-fix linting issues and apply formatting
+```
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration. On every pull request and push to `main`, the following checks run in parallel:
+- **lint**: Code quality checks with ruff
+- **format**: Code formatting validation
+- **type**: Type checking with mypy
+- **test**: Test suite with coverage (minimum 80%)
+
+All checks must pass before merging.
+
 ## Contributing
 
 Contributions welcome! Please open an issue or submit a pull request.

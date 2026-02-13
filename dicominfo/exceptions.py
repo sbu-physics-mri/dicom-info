@@ -7,3 +7,7 @@ class DicomReadError(Exception):
 
 class NoPixelDataError(Exception):
     """Raised when no DICOM files contain pixel data."""
+
+
+class UnsupportedPixelDataError(Exception):
+    """Raised when pixel data is not supported."""

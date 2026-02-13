@@ -3,17 +3,136 @@
 # ruff: noqa: S101 PLR2004
 
 # Python imports
+import importlib
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Module Imports
+import matplotlib
 import numpy as np
 import pytest
-from dicominfo import DicomReadError, NoPixelDataError, display_images, print_stats
+from dicominfo import (
+    DicomReadError,
+    NoPixelDataError,
+    UnsupportedPixelDataError,
+    display_images,
+    print_stats,
+)
 from dicominfo.core import validate_files
 from dicominfo.utils import load_dicom_files
-from dicominfo.viewer import _get_image_type
+from dicominfo.viewer import _create_slice_updater, _get_image_type
+
+matplotlib.use('Agg')
+
+class TestLazyImport:
+    """Tests for __getattr__ lazy loading mechanism."""
+
+    def test_display_images_lazy_import(self) -> None:
+        """Test that display_images is loaded lazily."""
+        import sys
+
+        # Remove dicominfo modules from cache to test fresh import
+        modules_to_remove = [
+            mod for mod in sys.modules if mod.startswith("dicominfo")
+        ]
+        for mod in modules_to_remove:
+            del sys.modules[mod]
+
+        # Import dicominfo fresh
+        import dicominfo
+
+        # Verify viewer not yet loaded
+        assert "dicominfo.viewer" not in sys.modules
+
+        # Access display_images (triggers __getattr__)
+        func = dicominfo.display_images
+
+        # Verify it was imported correctly
+        assert "dicominfo.viewer" in sys.modules
+        assert callable(func)
+
+    def test_invalid_attribute_raises_error(self) -> None:
+        """Test that invalid attributes raise AttributeError."""
+        import dicominfo
+
+        with pytest.raises(AttributeError, match="module 'dicominfo' has no attribute 'nonexistent'"):
+            _ = dicominfo.nonexistent
+
+    def test_other_attributes_work_normally(self) -> None:
+        """Test that non-lazy attributes are accessible immediately."""
+        import dicominfo
+
+        # These should work without triggering lazy import of viewer
+        assert hasattr(dicominfo, "__version__")
+        assert hasattr(dicominfo, "DicomReadError")
+        assert hasattr(dicominfo, "main")
+
+
+class TestVersion:
+    """Tests for version module."""
+
+    def test_version_is_string(self) -> None:
+        """Test that __version__ is a string."""
+        from dicominfo import __version__
+
+        assert isinstance(__version__, str)
+
+    def test_version_matches_semantic_versioning(self) -> None:
+        """Test that version follows semver pattern (x.y.z)."""
+        import re
+
+        from dicominfo import __version__
+
+        # Match semantic versioning: MAJOR.MINOR.PATCH[-prerelease][+build]
+        semver_pattern = r"^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$"
+        assert re.match(semver_pattern, __version__), (
+            f"Version '{__version__}' does not match semantic versioning"
+        )
+
+    def test_version_importable_from_root(self) -> None:
+        """Test that version is importable from package root."""
+        from dicominfo import __version__
+
+        assert __version__ is not None
+        assert len(__version__) > 0
+
+    @patch("importlib.metadata.version")
+    def test_dev_version(
+        self,
+        mock_metadata_version: Callable,
+    ) -> None:
+        """Test that the version is dev version.
+
+        When the package cannot be installed.
+
+        """
+        from importlib.metadata import PackageNotFoundError
+        mock_metadata_version.side_effect = PackageNotFoundError
+
+        from dicominfo import _version
+        importlib.reload(_version)
+
+        assert "+dev" in _version.__version__
+
+    @patch("tomllib.load")
+    @patch("importlib.metadata.version")
+    def test_toml_decode_error(
+        self,
+        mock_metadata_version: Callable,
+        mock_tomllib_load: Callable,
+    ) -> None:
+        """Check a runtime error is raised on TOMLDecodeError."""
+        from importlib.metadata import PackageNotFoundError
+        mock_metadata_version.side_effect = PackageNotFoundError
+
+        from dicominfo import _version
+
+        from tomllib import TOMLDecodeError
+        mock_tomllib_load.side_effect = TOMLDecodeError
+
+        with pytest.raises(RuntimeError, match="Failed to parse"):
+            importlib.reload(_version)
 
 
 class TestLoadDicomFiles:
@@ -25,8 +144,7 @@ class TestLoadDicomFiles:
             load_dicom_files(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that load_dicom_files raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -61,8 +179,7 @@ class TestValidateFiles:
             validate_files(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that validate_files raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -82,8 +199,7 @@ class TestPrintStats:
             print_stats(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that print_stats raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -103,8 +219,7 @@ class TestDisplayImages:
             display_images(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that display_images raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -116,8 +231,7 @@ class TestDisplayImages:
 
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_raises_no_pixel_data_error_when_no_pixel_data(
-        self,
-        mock_dcmread: Callable,
+        self, mock_dcmread: Callable
     ) -> None:
         """Test that display_images raises NoPixelDataError.
 
@@ -130,24 +244,120 @@ class TestDisplayImages:
         mock_dcmread.return_value = mock_dcm
 
         with pytest.raises(
-            NoPixelDataError,
-            match="No DICOM files with pixel data found",
+            NoPixelDataError, match="No DICOM files with pixel data found"
         ):
             display_images(["mock_file.dcm"])
+
+    @patch("dicominfo.utils.pydicom.dcmread")
+    def test_raises_unsupported_pixel_data_error_with_unknown_image_type(
+        self, mock_dcmread: Callable
+    ) -> None:
+        """Test that display_images raises UnsupportedPixelDataError.
+
+        When files have incorrect pixel data shape.
+        """
+        # Mock a DICOM file with 4D pixel array (e.g., time series with multiple slices)
+        mock_dcm = MagicMock()
+        mock_dcm.SamplesPerPixel = 1
+        mock_dcm.NumberOfFrames = 10
+        # 4D array: (time, slices, height, width) - currently unsupported
+        mock_dcm.pixel_array = np.zeros((5, 10, 256, 256), dtype=np.uint16)
+        mock_dcmread.return_value = mock_dcm
+
+        with pytest.raises(
+            UnsupportedPixelDataError,
+            match="has unsupported dimensions",
+        ):
+            display_images(["mock_file.dcm"])
+
+
+class TestSliceUpdater:
+    """Tests for the slider update callback logic."""
+
+    def test_update_sets_correct_slice(self) -> None:
+        """Test that update changes the image to the correct slice."""
+        # Arrange
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_im = MagicMock()
+        mock_slider = MagicMock()
+
+        # 3D volume: 5 slices of 10x10
+        data = np.random.rand(5, 10, 10).astype(np.float32)
+
+        updater = _create_slice_updater(
+            mock_im, mock_ax, data, "test.dcm", mock_slider, mock_fig
+        )
+
+        # Act - simulate slider moved to index 3
+        mock_slider.val = 3
+        updater(3.0)
+
+        # Assert
+        assert mock_im.set_data.call_count == 1
+        # Use numpy testing to compare arrays properly
+        passed_array = mock_im.set_data.call_args[0][0]
+        np.testing.assert_array_equal(passed_array, data[3])
+        mock_ax.set_title.assert_called_once_with("test.dcm\nSlice 4/5")
+        mock_fig.canvas.draw_idle.assert_called_once()
+
+    def test_update_logs_debug_message(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that update logs the slider value."""
+        import logging
+
+        mock_fig = MagicMock()
+        mock_ax = MagicMock()
+        mock_im = MagicMock()
+        mock_slider = MagicMock()
+        mock_slider.val = 2
+
+        updater = _create_slice_updater(
+            mock_im, mock_ax, np.zeros((5, 10, 10)), "file.dcm", mock_slider, mock_fig
+        )
+
+        with caplog.at_level(logging.DEBUG, logger="dicominfo.viewer"):
+            updater(2.5)  # Note: function uses int(sldr.val), not the parameter
+
+        assert "Slider at slice 2.500000 for file.dcm" in caplog.text
 
 
 class TestMain:
     """Tests for main CLI function."""
 
+    @patch("dicominfo.viewer.display_images")
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "--display", "mock_file.dcm"])
+    def test_exits_with_code_1_on_unsupported_pixel_error(
+        self,
+        mock_print_stats: Callable,  # noqa: ARG002
+        mock_display_images: Callable,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that main exits with code 1 on UnsupportedPixelDataError."""
+        from dicominfo import main
+        from dicominfo.exceptions import UnsupportedPixelDataError
+
+        # Mock print_stats to raise DicomReadError
+        mock_display_images.side_effect = UnsupportedPixelDataError(
+            "Unsupported Pixel Data",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert "Unsupported Pixel Data" in captured.out
+
+
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "/nonexistent/file.dcm"])
     def test_exits_with_code_1_on_dicom_read_error(
-        self,
-        mock_print_stats: Callable,
-        capsys: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that main exits with code 1 when DicomReadError is raised."""
         from dicominfo import main
+        from dicominfo.exceptions import DicomReadError
 
         # Mock print_stats to raise DicomReadError
         mock_print_stats.side_effect = DicomReadError("Test error message")
@@ -164,12 +374,13 @@ class TestMain:
     @patch("sys.argv", ["dicom-info", "-d", "mock_file.dcm"])
     def test_exits_with_code_1_on_no_pixel_data_error(
         self,
-        mock_print_stats: Callable,     # noqa: ARG002
+        mock_print_stats: Callable,  # noqa: ARG002
         mock_display_images: Callable,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Test that main exits with code 1 when NoPixelDataError is raised."""
         from dicominfo import main
+        from dicominfo.exceptions import NoPixelDataError
 
         # Mock display_images to raise NoPixelDataError
         mock_display_images.side_effect = NoPixelDataError("No pixel data")
@@ -183,8 +394,7 @@ class TestMain:
 
     @patch("sys.argv", ["dicom-info", "--version"])
     def test_version_flag_exits_with_code_0(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --version flag displays version and exits."""
         from dicominfo import __version__, main
@@ -199,9 +409,7 @@ class TestMain:
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "-v", "mock_file.dcm"])
     def test_verbose_flag_enables_debug_logging(
-        self,
-        mock_print_stats: Callable,
-        caplog: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that -v/--verbose flag enables debug logging."""
         import logging
@@ -218,9 +426,7 @@ class TestMain:
     @patch("dicominfo.core.validate_files")
     @patch("sys.argv", ["dicom-info", "-q", "mock_file.dcm"])
     def test_quiet_flag_suppresses_output(
-        self,
-        mock_validate_files: Callable,
-        capsys: pytest.CaptureFixture[str],
+        self, mock_validate_files: Callable, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that -q/--quiet flag suppresses metadata output."""
         from dicominfo import main
@@ -237,9 +443,7 @@ class TestMain:
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "--verbose", "mock_file.dcm"])
     def test_verbose_long_flag_enables_debug_logging(
-        self,
-        mock_print_stats: Callable,
-        caplog: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --verbose flag enables debug logging."""
         import logging
@@ -256,8 +460,7 @@ class TestMain:
     @patch("dicominfo.core.validate_files")
     @patch("sys.argv", ["dicom-info", "--quiet", "mock_file.dcm"])
     def test_quiet_long_flag_suppresses_output(
-        self,
-        mock_validate_files: Callable,
+        self, mock_validate_files: Callable
     ) -> None:
         """Test that --quiet flag suppresses metadata output."""
         from dicominfo import main
@@ -269,8 +472,7 @@ class TestMain:
 
     @patch("sys.argv", ["dicom-info", "--display", "-c", "0", "mock_file.dcm"])
     def test_zero_columns_shows_validation_error(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --columns=0 shows validation error and exits with code 2."""
         from dicominfo import main
@@ -282,10 +484,11 @@ class TestMain:
         captured = capsys.readouterr()
         assert "--columns must be a positive integer" in captured.err
 
-    @patch("sys.argv", ["dicom-info", "--display", "-c", "-1", "mock_file.dcm"])
+    @patch(
+        "sys.argv", ["dicom-info", "--display", "-c", "-1", "mock_file.dcm"]
+    )
     def test_negative_columns_shows_validation_error(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --columns=-1 shows validation error and exits with code 2."""
         from dicominfo import main
@@ -296,6 +499,22 @@ class TestMain:
         assert exc_info.value.code == 2
         captured = capsys.readouterr()
         assert "--columns must be a positive integer" in captured.err
+
+    @patch("dicominfo.cli.print_stats")
+    @patch("sys.argv", ["dicom-info", "-c", "0", "mock_file.dcm"])
+    def test_invalid_columns_with_no_display_is_ok(
+        self,
+        mock_print_stats: Callable,
+        caplog: pytest.CaptureFixture[str],
+    ) -> None:
+        """Test that --columns=0 is valid if no --display flag is passed."""
+        from dicominfo import main
+
+        main()
+
+        mock_print_stats.assert_called_once()
+
+        assert "only applies to the --display flag" in caplog.text
 
     @patch("dicominfo.viewer.display_images")
     @patch("dicominfo.cli.print_stats")
@@ -327,7 +546,9 @@ class TestMain:
         main()
 
         # Verify display_images was called with the correct columns value
-        mock_display_images.assert_called_once_with(["mock_file.dcm"], max_cols=5)
+        mock_display_images.assert_called_once_with(
+            ["mock_file.dcm"], max_cols=5
+        )
 
 
 class TestGetImageType:
@@ -386,8 +607,7 @@ class TestGetImageType:
         assert result == "3d_volume"
 
     def test_warns_on_number_of_frames_mismatch(
-        self,
-        caplog: pytest.CaptureFixture[str],
+        self, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that warning is logged.
 
@@ -415,8 +635,7 @@ class TestGetImageType:
         assert result == "unsupported"
 
     def test_unsupported_rgb_with_wrong_shape(
-        self,
-        caplog: pytest.CaptureFixture[str],
+        self, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that RGB images with unexpected shapes are unsupported."""
         mock_dcm = MagicMock()
@@ -445,9 +664,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_2d_grayscale_correctly(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that 2D grayscale images are displayed correctly."""
         mock_dcm = MagicMock()
@@ -463,9 +680,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_rgb_without_grayscale_colormap(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that RGB images are not displayed with grayscale colormap."""
         mock_dcm = MagicMock()
@@ -482,9 +697,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_3d_volume_with_slider(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that 3D volumes are displayed with a slider."""
         mock_dcm = MagicMock()
@@ -501,9 +714,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_handles_multi_frame_temporal_data(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that multi-frame temporal data is displayed with slider."""
         mock_dcm = MagicMock()
@@ -536,10 +747,7 @@ class TestWithPydicomExamples:
         """Test loading multiple real example files."""
         from pydicom import examples
 
-        paths = [
-            str(examples.get_path("ct")),
-            str(examples.get_path("mr")),
-        ]
+        paths = [str(examples.get_path("ct")), str(examples.get_path("mr"))]
         result = load_dicom_files(paths)
 
         assert len(result) == 2
@@ -615,8 +823,7 @@ class TestWithPydicomExamples:
         assert image_type in ("2d_gray", "3d_volume")
 
     def test_print_stats_with_ct_example(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test print_stats output with real CT data."""
         from pydicom import examples
@@ -631,7 +838,9 @@ class TestWithPydicomExamples:
         assert "CT" in output or "Patient" in output
         assert "CompressedSamples" in output or "CT1" in output
 
-    def test_print_stats_multiple_files(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_print_stats_multiple_files(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         """Test print_stats with multiple real files."""
         from pydicom import examples
 
@@ -643,10 +852,7 @@ class TestWithPydicomExamples:
         assert len(captured.out) > 0
 
     @patch("dicominfo.viewer.plt.show")
-    def test_display_ct_image(
-        self,
-        mock_show: Callable,
-    ) -> None:
+    def test_display_ct_image(self, mock_show: Callable) -> None:
         """Test displaying CT example with real pixel data."""
         from pydicom import examples
 
@@ -684,7 +890,7 @@ class TestWithPydicomExamples:
         from pydicom import examples
 
         waveform_path = str(examples.get_path("waveform"))
-        
+
         # Waveform files don't have pixel_array, should raise NoPixelDataError
         # if that's the only file, or skip if mixed with images
         with pytest.raises(NoPixelDataError):
@@ -692,8 +898,7 @@ class TestWithPydicomExamples:
 
     @patch("dicominfo.viewer.plt.show")
     def test_display_mixed_valid_and_waveform(
-        self,
-        mock_show: Callable,
+        self, mock_show: Callable
     ) -> None:
         """Test displaying CT + waveform - only CT should display."""
         from pydicom import examples
@@ -704,7 +909,7 @@ class TestWithPydicomExamples:
         ]
         # Should only show CT, skip waveform (no pixel data)
         display_images(paths)
-        
+
         mock_show.assert_called_once()
 
     def test_jpeg2000_example_loads_correctly(self) -> None:

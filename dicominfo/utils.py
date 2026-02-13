@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+# Type Checking
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+# Module imports
 import pydicom
 import pydicom.errors
 
 from dicominfo.exceptions import DicomReadError
 
 
-def load_dicom_files(files: list[str]) -> list[pydicom.Dataset]:
-    """Load DICOM files and return a list of pydicom Dataset objects.
+def load_dicom_files(files: list[str]) -> Sequence[pydicom.Dataset]:
+    """
+    Load DICOM files and return a list of pydicom Dataset objects.
 
     Args:
         files: List of file paths to DICOM files.
@@ -20,6 +28,7 @@ def load_dicom_files(files: list[str]) -> list[pydicom.Dataset]:
     Raises:
         DicomReadError: If files cannot be read due to FileNotFoundError
             or InvalidDicomError.
+
     """
     try:
         dcms = [pydicom.dcmread(f) for f in files]

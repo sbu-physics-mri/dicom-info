@@ -6,6 +6,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from matplotlib.axes import Axes
     from matplotlib.image import AxesImage
     from numpy import ndarray
@@ -15,21 +17,23 @@ if TYPE_CHECKING:
 # Python imports
 import logging
 from pathlib import Path
-from typing import Callable
 
 # Module imports
+import matplotlib as mpl
+import matplotlib.figure
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from dicominfo.exceptions import NoPixelDataError
+from dicominfo.exceptions import NoPixelDataError, UnsupportedPixelDataError
 from dicominfo.utils import load_dicom_files
 
 logger = logging.getLogger(__name__)
 
 
 def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
-    """Determine the type of DICOM image based on metadata.
+    """
+    Determine the type of DICOM image based on metadata.
 
     Args:
         dcm: PyDICOM dataset object
@@ -72,6 +76,28 @@ def _get_image_type(dcm: Dataset, pixel_array: ndarray) -> str:
 
     # 4D or higher dimensional data
     return "unsupported"
+
+
+def _create_slice_updater(  # noqa: PLR0913
+    image_obj: AxesImage,
+    axis: Axes,
+    data: ndarray,
+    fname: str,
+    slider: Slider,
+    fig: mpl.figure.Figure,
+) -> Callable[[float], None]:
+    """Factory for slider update callbacks."""  # noqa: D401
+
+    def update(val: float) -> None:
+        slice_idx = int(slider.val)
+        image_obj.set_data(data[slice_idx])
+        axis.set_title(
+            f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}",
+        )
+        fig.canvas.draw_idle()
+        logger.debug("Slider at slice %f for %s", val, fname)
+
+    return update
 
 
 def display_images(
@@ -152,38 +178,24 @@ def display_images(
                 orientation="vertical",
             )
 
-            # Update function for slider
-            def make_update(
-                image_obj: AxesImage,
-                axis: Axes,
-                data: ndarray,
-                fname: str,
-                sldr: Slider,
-            ) -> Callable[[float], None]:
-                def update(val: float) -> None:
-                    slice_idx = int(sldr.val)
-                    image_obj.set_data(data[slice_idx])
-                    axis.set_title(
-                        f"{fname}\nSlice {slice_idx + 1}/{data.shape[0]}",
-                    )
-                    fig.canvas.draw_idle()
-                    logger.debug("Slider at slice %f for %s", val, fname)
-
-                return update
-
             slider.on_changed(
-                make_update(im, ax, pixel_array, filename, slider),
+                _create_slice_updater(
+                    im,
+                    ax,
+                    pixel_array,
+                    filename,
+                    slider,
+                    fig,
+                ),
             )
             sliders.append(slider)
             axes_images.append((ax, im, slider, pixel_array))
 
         else:
             # Unsupported dimensions
-            logger.warning(
-                "%s has unsupported dimensions: %s",
-                filename,
-                pixel_array.shape,
-            )
+            msg = f"{filename} has unsupported dimensions: {pixel_array.shape}"
+            logger.error("%s", msg)
+            raise UnsupportedPixelDataError(msg)
 
     plt.tight_layout()
     if len(files_with_pixels) == 1 and axes_images[0][2] is not None:
