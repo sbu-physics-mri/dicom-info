@@ -8,13 +8,20 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 # Module Imports
+import matplotlib
 import numpy as np
 import pytest
-from dicominfo import DicomReadError, NoPixelDataError, display_images, print_stats
+from dicominfo import (
+    DicomReadError,
+    NoPixelDataError,
+    display_images,
+    print_stats,
+)
 from dicominfo.core import validate_files
 from dicominfo.utils import load_dicom_files
 from dicominfo.viewer import _get_image_type
 
+matplotlib.use('Agg')
 
 class TestLoadDicomFiles:
     """Tests for load_dicom_files function."""
@@ -25,8 +32,7 @@ class TestLoadDicomFiles:
             load_dicom_files(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that load_dicom_files raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -61,8 +67,7 @@ class TestValidateFiles:
             validate_files(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that validate_files raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -82,8 +87,7 @@ class TestPrintStats:
             print_stats(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that print_stats raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -103,8 +107,7 @@ class TestDisplayImages:
             display_images(["/nonexistent/file.dcm"])
 
     def test_raises_dicom_read_error_on_invalid_dicom(
-        self,
-        tmp_path: Path,
+        self, tmp_path: Path
     ) -> None:
         """Test that display_images raises DicomReadError on invalid DICOM file."""
         # Create a non-DICOM file
@@ -116,8 +119,7 @@ class TestDisplayImages:
 
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_raises_no_pixel_data_error_when_no_pixel_data(
-        self,
-        mock_dcmread: Callable,
+        self, mock_dcmread: Callable
     ) -> None:
         """Test that display_images raises NoPixelDataError.
 
@@ -130,8 +132,7 @@ class TestDisplayImages:
         mock_dcmread.return_value = mock_dcm
 
         with pytest.raises(
-            NoPixelDataError,
-            match="No DICOM files with pixel data found",
+            NoPixelDataError, match="No DICOM files with pixel data found"
         ):
             display_images(["mock_file.dcm"])
 
@@ -142,9 +143,7 @@ class TestMain:
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "/nonexistent/file.dcm"])
     def test_exits_with_code_1_on_dicom_read_error(
-        self,
-        mock_print_stats: Callable,
-        capsys: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that main exits with code 1 when DicomReadError is raised."""
         from dicominfo import main
@@ -164,7 +163,7 @@ class TestMain:
     @patch("sys.argv", ["dicom-info", "-d", "mock_file.dcm"])
     def test_exits_with_code_1_on_no_pixel_data_error(
         self,
-        mock_print_stats: Callable,     # noqa: ARG002
+        mock_print_stats: Callable,  # noqa: ARG002
         mock_display_images: Callable,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
@@ -183,8 +182,7 @@ class TestMain:
 
     @patch("sys.argv", ["dicom-info", "--version"])
     def test_version_flag_exits_with_code_0(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --version flag displays version and exits."""
         from dicominfo import __version__, main
@@ -199,9 +197,7 @@ class TestMain:
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "-v", "mock_file.dcm"])
     def test_verbose_flag_enables_debug_logging(
-        self,
-        mock_print_stats: Callable,
-        caplog: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that -v/--verbose flag enables debug logging."""
         import logging
@@ -218,9 +214,7 @@ class TestMain:
     @patch("dicominfo.core.validate_files")
     @patch("sys.argv", ["dicom-info", "-q", "mock_file.dcm"])
     def test_quiet_flag_suppresses_output(
-        self,
-        mock_validate_files: Callable,
-        capsys: pytest.CaptureFixture[str],
+        self, mock_validate_files: Callable, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that -q/--quiet flag suppresses metadata output."""
         from dicominfo import main
@@ -237,9 +231,7 @@ class TestMain:
     @patch("dicominfo.cli.print_stats")
     @patch("sys.argv", ["dicom-info", "--verbose", "mock_file.dcm"])
     def test_verbose_long_flag_enables_debug_logging(
-        self,
-        mock_print_stats: Callable,
-        caplog: pytest.CaptureFixture[str],
+        self, mock_print_stats: Callable, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --verbose flag enables debug logging."""
         import logging
@@ -256,8 +248,7 @@ class TestMain:
     @patch("dicominfo.core.validate_files")
     @patch("sys.argv", ["dicom-info", "--quiet", "mock_file.dcm"])
     def test_quiet_long_flag_suppresses_output(
-        self,
-        mock_validate_files: Callable,
+        self, mock_validate_files: Callable
     ) -> None:
         """Test that --quiet flag suppresses metadata output."""
         from dicominfo import main
@@ -269,8 +260,7 @@ class TestMain:
 
     @patch("sys.argv", ["dicom-info", "--display", "-c", "0", "mock_file.dcm"])
     def test_zero_columns_shows_validation_error(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --columns=0 shows validation error and exits with code 2."""
         from dicominfo import main
@@ -282,10 +272,11 @@ class TestMain:
         captured = capsys.readouterr()
         assert "--columns must be a positive integer" in captured.err
 
-    @patch("sys.argv", ["dicom-info", "--display", "-c", "-1", "mock_file.dcm"])
+    @patch(
+        "sys.argv", ["dicom-info", "--display", "-c", "-1", "mock_file.dcm"]
+    )
     def test_negative_columns_shows_validation_error(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test that --columns=-1 shows validation error and exits with code 2."""
         from dicominfo import main
@@ -327,7 +318,9 @@ class TestMain:
         main()
 
         # Verify display_images was called with the correct columns value
-        mock_display_images.assert_called_once_with(["mock_file.dcm"], max_cols=5)
+        mock_display_images.assert_called_once_with(
+            ["mock_file.dcm"], max_cols=5
+        )
 
 
 class TestGetImageType:
@@ -386,8 +379,7 @@ class TestGetImageType:
         assert result == "3d_volume"
 
     def test_warns_on_number_of_frames_mismatch(
-        self,
-        caplog: pytest.CaptureFixture[str],
+        self, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that warning is logged.
 
@@ -415,8 +407,7 @@ class TestGetImageType:
         assert result == "unsupported"
 
     def test_unsupported_rgb_with_wrong_shape(
-        self,
-        caplog: pytest.CaptureFixture[str],
+        self, caplog: pytest.CaptureFixture[str]
     ) -> None:
         """Test that RGB images with unexpected shapes are unsupported."""
         mock_dcm = MagicMock()
@@ -445,9 +436,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_2d_grayscale_correctly(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that 2D grayscale images are displayed correctly."""
         mock_dcm = MagicMock()
@@ -463,9 +452,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_rgb_without_grayscale_colormap(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that RGB images are not displayed with grayscale colormap."""
         mock_dcm = MagicMock()
@@ -482,9 +469,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_displays_3d_volume_with_slider(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that 3D volumes are displayed with a slider."""
         mock_dcm = MagicMock()
@@ -501,9 +486,7 @@ class TestDisplayImagesIntegration:
     @patch("dicominfo.viewer.plt.show")
     @patch("dicominfo.utils.pydicom.dcmread")
     def test_handles_multi_frame_temporal_data(
-        self,
-        mock_dcmread: Callable,
-        mock_show: Callable,
+        self, mock_dcmread: Callable, mock_show: Callable
     ) -> None:
         """Test that multi-frame temporal data is displayed with slider."""
         mock_dcm = MagicMock()
@@ -536,10 +519,7 @@ class TestWithPydicomExamples:
         """Test loading multiple real example files."""
         from pydicom import examples
 
-        paths = [
-            str(examples.get_path("ct")),
-            str(examples.get_path("mr")),
-        ]
+        paths = [str(examples.get_path("ct")), str(examples.get_path("mr"))]
         result = load_dicom_files(paths)
 
         assert len(result) == 2
@@ -615,8 +595,7 @@ class TestWithPydicomExamples:
         assert image_type in ("2d_gray", "3d_volume")
 
     def test_print_stats_with_ct_example(
-        self,
-        capsys: pytest.CaptureFixture[str],
+        self, capsys: pytest.CaptureFixture[str]
     ) -> None:
         """Test print_stats output with real CT data."""
         from pydicom import examples
@@ -631,7 +610,9 @@ class TestWithPydicomExamples:
         assert "CT" in output or "Patient" in output
         assert "CompressedSamples" in output or "CT1" in output
 
-    def test_print_stats_multiple_files(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_print_stats_multiple_files(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         """Test print_stats with multiple real files."""
         from pydicom import examples
 
@@ -643,10 +624,7 @@ class TestWithPydicomExamples:
         assert len(captured.out) > 0
 
     @patch("dicominfo.viewer.plt.show")
-    def test_display_ct_image(
-        self,
-        mock_show: Callable,
-    ) -> None:
+    def test_display_ct_image(self, mock_show: Callable) -> None:
         """Test displaying CT example with real pixel data."""
         from pydicom import examples
 
@@ -684,7 +662,7 @@ class TestWithPydicomExamples:
         from pydicom import examples
 
         waveform_path = str(examples.get_path("waveform"))
-        
+
         # Waveform files don't have pixel_array, should raise NoPixelDataError
         # if that's the only file, or skip if mixed with images
         with pytest.raises(NoPixelDataError):
@@ -692,8 +670,7 @@ class TestWithPydicomExamples:
 
     @patch("dicominfo.viewer.plt.show")
     def test_display_mixed_valid_and_waveform(
-        self,
-        mock_show: Callable,
+        self, mock_show: Callable
     ) -> None:
         """Test displaying CT + waveform - only CT should display."""
         from pydicom import examples
@@ -704,7 +681,7 @@ class TestWithPydicomExamples:
         ]
         # Should only show CT, skip waveform (no pixel data)
         display_images(paths)
-        
+
         mock_show.assert_called_once()
 
     def test_jpeg2000_example_loads_correctly(self) -> None:
