@@ -22,10 +22,10 @@ dicom-info is a simple Python utility that reads and displays information from D
 
 ## Installation
 
-With uv:
+Not required with uv, use uvx to start using `dicom-info` straight away:
 
 ```bash
-uvx dicom-info
+uvx dicom-info --help
 ```
 
 or pip
